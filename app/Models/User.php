@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use App\Models\Item;
 
 class User extends Authenticatable
 {
@@ -31,8 +31,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function items(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function items(): HasMany
     {
         return $this->hasMany(Item::class);
+    }
+
+    public function claims(): HasMany
+    {
+        return $this->hasMany(Claim::class, 'claimant_id');
     }
 }

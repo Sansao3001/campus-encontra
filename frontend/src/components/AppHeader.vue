@@ -188,6 +188,7 @@ const primaryLinks = [
   { name: 'home', label: 'Início', icon: 'mdi-home-outline' },
   { name: 'publish', label: 'Publicar', icon: 'mdi-plus-circle-outline' },
   { name: 'my-items', label: 'Os meus objectos', icon: 'mdi-bag-personal-outline' },
+  { name: 'claims', label: 'Reclamações', icon: 'mdi-handshake-outline' },
 ]
 
 const allLinks = primaryLinks

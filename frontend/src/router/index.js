@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authState } from '@/stores/auth'
 
+import ClaimsPage from '@/pages/ClaimsPage.vue'
 import EditItemPage from '@/pages/EditItemPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import ItemDetailPage from '@/pages/ItemDetailPage.vue'
@@ -54,6 +55,12 @@ const routes = [
     component: EditItemPage,
     props: true,
     meta: { title: 'Editar objecto', requiresAuth: true },
+  },
+  {
+    path: '/reclamacoes',
+    name: 'claims',
+    component: ClaimsPage,
+    meta: { title: 'Reclamações', requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',

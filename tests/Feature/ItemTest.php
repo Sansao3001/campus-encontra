@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Claim;
 use App\Models\Item;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -397,6 +398,66 @@ class ItemTest extends TestCase
             ->assertUnauthorized();
 
         $this->assertDatabaseHas('items', ['id' => $item->id]);
+    }
+
+    public function test_item_em_recuperacao_nao_pode_ser_actualizado(): void
+    {
+        $user = User::factory()->create();
+        $item = $this->makeItem($user, ['status' => 'pending']);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/items/'.$item->id, [
+            'title' => 'Alteração durante a recuperação',
+        ])->assertStatus(409);
+
+        $item->refresh();
+        $this->assertSame('Mochila azul', $item->title);
+        $this->assertSame('pending', $item->status);
+    }
+
+    public function test_item_com_reclamacao_activa_nao_pode_ser_eliminado(): void
+    {
+        $user = User::factory()->create();
+        $claimant = User::factory()->create();
+        $item = $this->makeItem($user);
+        $item->claims()->create([
+            'claimant_id' => $claimant->id,
+            'status' => Claim::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson('/api/items/'.$item->id)->assertStatus(409);
+
+        $this->assertDatabaseHas('items', ['id' => $item->id]);
+        $this->assertDatabaseHas('claims', ['item_id' => $item->id]);
+    }
+
+    public function test_tipo_nao_pode_ser_alterado_com_reclamacao_activa(): void
+    {
+        $user = User::factory()->create();
+        $claimant = User::factory()->create();
+        $item = $this->makeItem($user, ['type' => 'found']);
+        $item->claims()->create([
+            'claimant_id' => $claimant->id,
+            'status' => Claim::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/items/'.$item->id, [
+            'type' => 'lost',
+        ])->assertStatus(409);
+
+        $item->refresh();
+        $this->assertSame('found', $item->type);
+
+        $this->putJson('/api/items/'.$item->id, [
+            'title' => 'Título actualizado sem mudar o tipo',
+        ])->assertOk()
+            ->assertJsonPath('title', 'Título actualizado sem mudar o tipo')
+            ->assertJsonPath('type', 'found');
     }
 
     public function test_item_inexistente_devolve_404(): void

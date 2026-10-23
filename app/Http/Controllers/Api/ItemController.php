@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ItemResource;
+use App\Models\Claim;
 use App\Models\Item;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ItemController extends Controller
 {
@@ -82,7 +84,28 @@ class ItemController extends Controller
             $this->validationMessages()
         );
 
-        $item->update($validated);
+        $item = DB::transaction(function () use ($item, $validated) {
+            $lockedItem = Item::whereKey($item->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedItem->status !== 'open') {
+                abort(409, 'Só é possível alterar objectos em aberto.');
+            }
+
+            if (
+                isset($validated['type'])
+                && $validated['type'] !== $lockedItem->type
+                && $lockedItem->claims()->whereIn('status', Claim::ACTIVE_STATUSES)->exists()
+            ) {
+                abort(409, 'Não é possível alterar o tipo de um objecto com reclamações activas.');
+            }
+
+            $lockedItem->update($validated);
+
+            return $lockedItem;
+        });
+
         $item->load(['user:id,name']);
 
         return response()->json(
@@ -99,7 +122,20 @@ class ItemController extends Controller
             'Não tens permissão para eliminar este item.'
         );
 
-        $item->delete();
+        DB::transaction(function () use ($item) {
+            $lockedItem = Item::whereKey($item->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $lockedItem->status === 'pending'
+                || $lockedItem->claims()->whereIn('status', Claim::ACTIVE_STATUSES)->exists()
+            ) {
+                abort(409, 'Não é possível eliminar um objecto com reclamações activas.');
+            }
+
+            $lockedItem->delete();
+        });
 
         return response()->json([
             'message' => 'Item eliminado com sucesso.',

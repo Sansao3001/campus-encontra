@@ -18,9 +18,9 @@ const STATUS_CONFIG = {
     icon: 'mdi-clock-outline',
   },
   pending: {
-    label: 'Em análise',
+    label: 'Em recuperação',
     color: 'warning',
-    icon: 'mdi-timer-sand',
+    icon: 'mdi-handshake-outline',
   },
   returned: {
     label: 'Devolvido',
