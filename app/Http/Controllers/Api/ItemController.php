@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ItemResource;
 use App\Models\Item;
 use Illuminate\Http\Request;
 
@@ -11,15 +12,23 @@ class ItemController extends Controller
     // Listar todos os itens: operação pública
     public function index()
     {
+        $items = Item::with(['user:id,name'])->latest()->get();
+
+        // Resolve mantém o formato actual (array), mas garante que a
+        // representação pública do autor nunca inclui o email.
         return response()->json(
-            Item::with('user')->latest()->get()
+            ItemResource::collection($items)->resolve()
         );
     }
 
     // Consultar um item: operação pública
     public function show(Item $item)
     {
-        return response()->json($item->load('user'));
+        $item->load(['user:id,name']);
+
+        return response()->json(
+            (new ItemResource($item))->resolve()
+        );
     }
 
     // Criar um item para o utilizador autenticado
@@ -33,14 +42,27 @@ class ItemController extends Controller
             'occurrence_date' => 'required|date',
             'photo_path' => 'nullable|string|max:255',
             'type' => 'required|in:lost,found',
-            'status' => 'sometimes|in:open,pending,returned',
+
+            // A autoria é determinada pelo servidor e o estado inicial
+            // é sempre "open". O cliente não pode atribuir nenhum dos dois.
+            'user_id' => 'prohibited',
+            'status' => 'prohibited',
         ]);
+
+        // O estado inicial é definido pelo servidor, não pelo cliente.
+        // Atribuí-lo explicitamente garante que o modelo devolvido já o contém.
+        $validated['status'] = 'open';
 
         $item = $request->user()
             ->items()
             ->create($validated);
 
-        return response()->json($item, 201);
+        $item->load(['user:id,name']);
+
+        return response()->json(
+            (new ItemResource($item))->resolve(),
+            201
+        );
     }
 
     // Actualizar apenas um item do próprio utilizador
@@ -60,12 +82,19 @@ class ItemController extends Controller
             'occurrence_date' => 'sometimes|required|date',
             'photo_path' => 'nullable|string|max:255',
             'type' => 'sometimes|required|in:lost,found',
-            'status' => 'sometimes|required|in:open,pending,returned',
+
+            // A autoria e o estado não são alteráveis por esta rota.
+            // O estado será alterado apenas pelo fluxo de recuperação.
+            'user_id' => 'prohibited',
+            'status' => 'prohibited',
         ]);
 
         $item->update($validated);
+        $item->load(['user:id,name']);
 
-        return response()->json($item);
+        return response()->json(
+            (new ItemResource($item))->resolve()
+        );
     }
 
     // Eliminar apenas um item do próprio utilizador
@@ -84,4 +113,3 @@ class ItemController extends Controller
         ]);
     }
 }
-

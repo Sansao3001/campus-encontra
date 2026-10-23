@@ -3,6 +3,10 @@
 .env
 .env.backup
 .env.production
+
+# Ficheiros locais com credenciais ou dados de teste: nunca versionar
+/login.json
+/item-teste.json
 .phpactor.json
 .phpunit.result.cache
 /.codex
