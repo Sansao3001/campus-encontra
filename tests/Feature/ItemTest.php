@@ -269,6 +269,29 @@ class ItemTest extends TestCase
         $this->assertDatabaseHas('items', ['id' => $item->id]);
     }
 
+    public function test_token_real_de_outro_utilizador_nao_actualiza_nem_elimina_item(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $token = $otherUser->createToken('teste')->plainTextToken;
+        $item = $this->makeItem($owner);
+
+        $this->withToken($token)
+            ->putJson('/api/items/'.$item->id, [
+                'title' => 'Alteração indevida',
+            ])
+            ->assertForbidden();
+
+        $this->withToken($token)
+            ->deleteJson('/api/items/'.$item->id)
+            ->assertForbidden();
+
+        $item->refresh();
+
+        $this->assertSame('Mochila azul', $item->title);
+        $this->assertDatabaseHas('items', ['id' => $item->id]);
+    }
+
     public function test_dono_elimina_item(): void
     {
         $user = User::factory()->create();

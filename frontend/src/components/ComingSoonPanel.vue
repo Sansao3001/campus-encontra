@@ -6,9 +6,21 @@
           <v-icon size="46" color="primary">{{ icon }}</v-icon>
         </v-avatar>
 
-        <v-chip color="primary" variant="tonal" size="small" class="mb-4">
-          {{ phase }}
-        </v-chip>
+        <div class="d-flex flex-wrap justify-center align-center ga-2 mb-4">
+          <v-chip color="primary" variant="tonal" size="small">
+            {{ phase }}
+          </v-chip>
+
+          <v-chip
+            v-if="user"
+            color="success"
+            variant="tonal"
+            size="small"
+            prepend-icon="mdi-account-check-outline"
+          >
+            Sessão iniciada: {{ user.name }}
+          </v-chip>
+        </div>
 
         <h1 class="text-h4 text-md-h3 font-weight-bold mb-4 coming-soon__title">
           {{ title }}
@@ -19,13 +31,33 @@
         </p>
 
         <v-alert
+          v-if="sessionError"
+          type="warning"
+          variant="tonal"
+          class="text-left mt-6"
+          icon="mdi-wifi-alert"
+        >
+          <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between ga-3">
+            <span>{{ sessionError }}</span>
+            <v-btn
+              color="warning"
+              variant="flat"
+              size="small"
+              rounded="lg"
+              @click="$emit('retry-session')"
+            >
+              Tentar novamente
+            </v-btn>
+          </div>
+        </v-alert>
+
+        <v-alert
           type="info"
           variant="tonal"
           class="text-left mt-6 mb-6"
           icon="mdi-information-outline"
         >
-          Esta página é apenas estrutural. Ainda não está ligada ao backend e não
-          efectua nenhuma operação real.
+          {{ notice }}
         </v-alert>
 
         <v-list
@@ -66,13 +98,27 @@ defineProps({
   },
   phase: {
     type: String,
-    default: 'Fase 3',
+    default: 'Em preparação',
   },
   items: {
     type: Array,
     default: () => [],
   },
+  user: {
+    type: Object,
+    default: null,
+  },
+  sessionError: {
+    type: String,
+    default: '',
+  },
+  notice: {
+    type: String,
+    default: 'Esta página ainda não efectua nenhuma operação real.',
+  },
 })
+
+defineEmits(['retry-session'])
 </script>
 
 <style scoped>

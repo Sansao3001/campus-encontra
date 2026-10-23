@@ -34,6 +34,8 @@ import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles'
 import App from './App.vue'
 import router from './router'
+import { onUnauthorized } from './services/authEvents'
+import { restoreSession } from './stores/auth'
 import './styles/main.css'
 
 const components = {
@@ -95,7 +97,23 @@ const vuetify = createVuetify({
   },
 })
 
+onUnauthorized(() => {
+  const current = router.currentRoute.value
+
+  if (current.meta?.requiresAuth) {
+    void router.replace({
+      name: 'login',
+      query: {
+        redirect: current.fullPath,
+        expired: '1',
+      },
+    })
+  }
+})
+
 createApp(App)
   .use(vuetify)
   .use(router)
   .mount('#app')
+
+void restoreSession()

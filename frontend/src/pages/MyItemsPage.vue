@@ -1,19 +1,23 @@
 <template>
   <ComingSoonPanel
     title="Os meus objectos"
-    phase="Fase 3"
+    phase="Área autenticada"
     icon="mdi-bag-personal-outline"
-    description="A área pessoal será activada quando a autenticação estiver ligada ao backend. Ainda não é mostrada nenhuma listagem privada."
+    description="A autenticação está activa e esta rota está protegida. A listagem privada dos teus objectos será implementada numa fase posterior."
     :items="[
-      'Listagem dos objectos publicados pelo utilizador',
-      'Consulta do estado actual de cada objecto',
-      'Acesso à edição e remoção dos próprios objectos',
-      'Preparação do fluxo de reclamações numa fase posterior',
+      'Sessão Sanctum confirmada pelo backend',
+      'Rota protegida no frontend e no servidor',
+      'O backend já valida a autoria nas operações de edição e remoção',
+      'A listagem privada será adicionada numa fase posterior',
     ]"
+    :user="authState.user"
+    :session-error="authState.sessionError"
+    notice="A listagem privada ainda não foi implementada. Não são mostrados dados simulados."
+    @retry-session="refreshSession"
   >
     <template #actions>
-      <v-btn color="primary" rounded="lg" :to="{ name: 'login' }">
-        Entrar
+      <v-btn color="primary" rounded="lg" :to="{ name: 'publish' }">
+        Publicar objecto
       </v-btn>
       <v-btn
         color="primary"
@@ -29,4 +33,5 @@
 
 <script setup>
 import ComingSoonPanel from '@/components/ComingSoonPanel.vue'
+import { authState, refreshSession } from '@/stores/auth'
 </script>

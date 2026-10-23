@@ -120,6 +120,13 @@ class AuthTest extends TestCase
         $this->getJson('/api/user')->assertUnauthorized();
     }
 
+    public function test_token_invalido_nao_acessa_perfil(): void
+    {
+        $this->withHeader('Authorization', 'Bearer token-invalido')
+            ->getJson('/api/user')
+            ->assertUnauthorized();
+    }
+
     public function test_utilizador_autenticado_consulta_perfil(): void
     {
         $user = User::factory()->create();

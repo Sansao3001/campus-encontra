@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { authState } from '@/stores/auth'
 
 import EditItemPage from '@/pages/EditItemPage.vue'
 import HomePage from '@/pages/HomePage.vue'
@@ -27,32 +28,32 @@ const routes = [
     path: '/entrar',
     name: 'login',
     component: LoginPage,
-    meta: { title: 'Entrar' },
+    meta: { title: 'Entrar', guestOnly: true },
   },
   {
     path: '/registar',
     name: 'register',
     component: RegisterPage,
-    meta: { title: 'Criar conta' },
+    meta: { title: 'Criar conta', guestOnly: true },
   },
   {
     path: '/publicar',
     name: 'publish',
     component: PublishItemPage,
-    meta: { title: 'Publicar objecto' },
+    meta: { title: 'Publicar objecto', requiresAuth: true },
   },
   {
     path: '/os-meus-objectos',
     name: 'my-items',
     component: MyItemsPage,
-    meta: { title: 'Os meus objectos' },
+    meta: { title: 'Os meus objectos', requiresAuth: true },
   },
   {
     path: '/os-meus-objectos/:id/editar',
     name: 'edit-item',
     component: EditItemPage,
     props: true,
-    meta: { title: 'Editar objecto' },
+    meta: { title: 'Editar objecto', requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -69,6 +70,21 @@ const router = createRouter({
     if (savedPosition) return savedPosition
     return { top: 0 }
   },
+})
+
+router.beforeEach((to) => {
+  if (to.meta?.requiresAuth && !authState.token) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  if (to.meta?.guestOnly && authState.user) {
+    return { name: 'my-items' }
+  }
+
+  return true
 })
 
 router.afterEach((to) => {

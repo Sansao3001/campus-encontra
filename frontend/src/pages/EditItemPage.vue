@@ -1,15 +1,19 @@
 <template>
   <ComingSoonPanel
     :title="'Editar objecto #' + id"
-    phase="Fase 3"
+    phase="Área autenticada"
     icon="mdi-pencil-outline"
-    description="A edição será ligada ao endpoint de actualização e às permissões do backend na Fase 3. Nenhuma alteração é guardada nesta página."
+    description="A autenticação está activa e esta rota está protegida. A edição será ligada ao endpoint real numa fase posterior."
     :items="[
-      'Actualização dos dados do próprio objecto',
-      'Validação de dados no frontend e no backend',
-      'Confirmação de que o utilizador é o autor',
-      'Protecção do estado e da autoria pelo servidor',
+      'Sessão Sanctum confirmada pelo backend',
+      'Rota protegida no frontend e no servidor',
+      'O backend valida a autoria do objecto',
+      'Nenhuma alteração é guardada nesta página',
     ]"
+    :user="authState.user"
+    :session-error="authState.sessionError"
+    notice="A edição real ainda não foi implementada. Nenhuma alteração é guardada."
+    @retry-session="refreshSession"
   >
     <template #actions>
       <v-btn
@@ -33,6 +37,7 @@
 
 <script setup>
 import ComingSoonPanel from '@/components/ComingSoonPanel.vue'
+import { authState, refreshSession } from '@/stores/auth'
 
 defineProps({
   id: {

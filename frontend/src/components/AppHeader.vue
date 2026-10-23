@@ -33,25 +33,49 @@
           style="border-color: rgba(255, 255, 255, 0.25)"
         />
 
-        <v-btn
-          :to="{ name: 'login' }"
-          variant="text"
-          color="white"
-          :class="{ 'nav-active': isActive('login') }"
-          :aria-current="isActive('login') ? 'page' : undefined"
-        >
-          Entrar
-        </v-btn>
+        <template v-if="hasSession">
+          <v-chip
+            color="white"
+            variant="outlined"
+            prepend-icon="mdi-account-circle-outline"
+            class="user-chip"
+          >
+            {{ displayName }}
+          </v-chip>
 
-        <v-btn
-          :to="{ name: 'register' }"
-          color="primary"
-          variant="flat"
-          rounded="lg"
-          class="ml-2"
-        >
-          Registar
-        </v-btn>
+          <v-btn
+            color="white"
+            variant="text"
+            prepend-icon="mdi-logout"
+            :loading="loggingOut"
+            :disabled="loggingOut"
+            @click="handleLogout"
+          >
+            Sair
+          </v-btn>
+        </template>
+
+        <template v-else>
+          <v-btn
+            :to="{ name: 'login' }"
+            variant="text"
+            color="white"
+            :class="{ 'nav-active': isActive('login') }"
+            :aria-current="isActive('login') ? 'page' : undefined"
+          >
+            Entrar
+          </v-btn>
+
+          <v-btn
+            :to="{ name: 'register' }"
+            color="primary"
+            variant="flat"
+            rounded="lg"
+            class="ml-2"
+          >
+            Registar
+          </v-btn>
+        </template>
       </nav>
 
       <v-app-bar-nav-icon
@@ -82,6 +106,23 @@
 
     <v-divider />
 
+    <div v-if="hasSession" class="pa-5 pb-0">
+      <v-chip
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-account-circle-outline"
+        class="mb-2"
+      >
+        {{ displayName }}
+      </v-chip>
+      <p v-if="authState.user?.email" class="text-caption text-medium-emphasis mb-0">
+        {{ authState.user.email }}
+      </p>
+      <p v-else class="text-caption text-medium-emphasis mb-0">
+        A confirmar a sessão com o servidor.
+      </p>
+    </div>
+
     <v-list nav density="comfortable" aria-label="Navegação móvel">
       <v-list-item
         v-for="item in allLinks"
@@ -96,33 +137,52 @@
     <v-divider class="my-3" />
 
     <div class="pa-4 d-flex flex-column ga-2">
-      <v-btn
-        :to="{ name: 'login' }"
-        variant="outlined"
-        color="primary"
-        block
-        @click="drawer = false"
-      >
-        Entrar
-      </v-btn>
-      <v-btn
-        :to="{ name: 'register' }"
-        color="primary"
-        block
-        @click="drawer = false"
-      >
-        Criar conta
-      </v-btn>
+      <template v-if="hasSession">
+        <v-btn
+          variant="outlined"
+          color="primary"
+          block
+          prepend-icon="mdi-logout"
+          :loading="loggingOut"
+          :disabled="loggingOut"
+          @click="handleLogout"
+        >
+          Terminar sessão
+        </v-btn>
+      </template>
+
+      <template v-else>
+        <v-btn
+          :to="{ name: 'login' }"
+          variant="outlined"
+          color="primary"
+          block
+          @click="drawer = false"
+        >
+          Entrar
+        </v-btn>
+        <v-btn
+          :to="{ name: 'register' }"
+          color="primary"
+          block
+          @click="drawer = false"
+        >
+          Criar conta
+        </v-btn>
+      </template>
     </div>
   </v-navigation-drawer>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { authState, hasSession, logout } from '@/stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const drawer = ref(false)
+const loggingOut = ref(false)
 
 const primaryLinks = [
   { name: 'home', label: 'Início', icon: 'mdi-home-outline' },
@@ -130,12 +190,11 @@ const primaryLinks = [
   { name: 'my-items', label: 'Os meus objectos', icon: 'mdi-bag-personal-outline' },
 ]
 
-const authLinks = [
-  { name: 'login', label: 'Entrar', icon: 'mdi-login' },
-  { name: 'register', label: 'Registar', icon: 'mdi-account-plus-outline' },
-]
+const allLinks = primaryLinks
 
-const allLinks = computed(() => [...primaryLinks, ...authLinks])
+const displayName = computed(
+  () => authState.user?.name || 'Sessão por confirmar',
+)
 
 function isActive(name) {
   if (name === 'my-items') {
@@ -143,6 +202,20 @@ function isActive(name) {
   }
 
   return route.name === name
+}
+
+async function handleLogout() {
+  if (loggingOut.value) return
+
+  loggingOut.value = true
+  const { revoked } = await logout()
+  loggingOut.value = false
+  drawer.value = false
+
+  await router.push({
+    name: 'login',
+    query: revoked ? { loggedOut: '1' } : { logoutError: '1' },
+  })
 }
 
 watch(
@@ -161,6 +234,16 @@ watch(
 
 .nav-active {
   background-color: rgba(255, 255, 255, 0.12);
+}
+
+.user-chip {
+  max-width: 220px;
+}
+
+.user-chip :deep(.v-chip__content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .drawer-brand {

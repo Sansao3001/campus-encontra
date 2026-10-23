@@ -24,3 +24,16 @@ export function getApiErrorMessage(
 
   return fallback
 }
+
+export function getFieldErrors(error) {
+  const errors = error?.response?.data?.errors
+
+  if (!errors || typeof errors !== 'object') return {}
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([field, messages]) => [
+      field,
+      Array.isArray(messages) ? messages[0] : String(messages),
+    ]),
+  )
+}
