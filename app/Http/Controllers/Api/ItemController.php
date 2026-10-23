@@ -11,16 +11,48 @@ use Illuminate\Support\Facades\DB;
 
 class ItemController extends Controller
 {
-    // Listar todos os itens: operação pública
-    public function index()
+    // Listar os itens: operação pública, com pesquisa, filtros e paginação
+    public function index(Request $request)
     {
-        $items = Item::with(['user:id,name'])->latest()->get();
-
-        // Resolve mantém o formato actual (array), mas garante que a
-        // representação pública do autor nunca inclui o email.
-        return response()->json(
-            ItemResource::collection($items)->resolve()
+        $validated = $request->validate(
+            $this->indexRules(),
+            $this->indexValidationMessages()
         );
+
+        $query = Item::query()->with(['user:id,name']);
+
+        $term = isset($validated['q']) ? trim($validated['q']) : null;
+
+        if ($term !== null && $term !== '') {
+            $pattern = '%'.$term.'%';
+
+            $query->where(function ($search) use ($pattern) {
+                $search
+                    ->whereLike('title', $pattern)
+                    ->orWhereLike('description', $pattern)
+                    ->orWhereLike('category', $pattern)
+                    ->orWhereLike('location', $pattern)
+                    ->orWhereHas('user', function ($user) use ($pattern) {
+                        $user->whereLike('name', $pattern);
+                    });
+            });
+        }
+
+        if (isset($validated['type'])) {
+            $query->where('type', $validated['type']);
+        }
+
+        if (isset($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        $items = $query
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 12))
+            ->withQueryString();
+
+        return ItemResource::collection($items);
     }
 
     // Listar apenas os itens do utilizador autenticado
@@ -140,6 +172,32 @@ class ItemController extends Controller
         return response()->json([
             'message' => 'Item eliminado com sucesso.',
         ]);
+    }
+
+    private function indexRules(): array
+    {
+        return [
+            'q' => ['nullable', 'string', 'max:100'],
+            'type' => ['nullable', 'in:lost,found'],
+            'status' => ['nullable', 'in:open,pending,returned'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ];
+    }
+
+    private function indexValidationMessages(): array
+    {
+        return [
+            'q.string' => 'O termo de pesquisa deve ser texto.',
+            'q.max' => 'O termo de pesquisa não pode ter mais de 100 caracteres.',
+            'type.in' => 'O tipo deve ser "perdido" ou "encontrado".',
+            'status.in' => 'O estado deve ser "em aberto", "em recuperação" ou "devolvido".',
+            'page.integer' => 'A página deve ser um número inteiro.',
+            'page.min' => 'A página deve ser pelo menos 1.',
+            'per_page.integer' => 'O número de resultados por página deve ser um número inteiro.',
+            'per_page.min' => 'O número de resultados por página deve ser pelo menos 1.',
+            'per_page.max' => 'O número de resultados por página não pode ser superior a 50.',
+        ];
     }
 
     private function storeRules(): array

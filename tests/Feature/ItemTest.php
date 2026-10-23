@@ -38,15 +38,21 @@ class ItemTest extends TestCase
         $response = $this->getJson('/api/items');
 
         $response->assertOk()
-            ->assertJsonPath('0.id', $item->id)
-            ->assertJsonPath('0.user.id', $user->id)
-            ->assertJsonPath('0.user.name', 'Autor Público')
-            ->assertJsonMissingPath('0.user.email');
+            ->assertJsonPath('data.0.id', $item->id)
+            ->assertJsonPath('data.0.user.id', $user->id)
+            ->assertJsonPath('data.0.user.name', 'Autor Público')
+            ->assertJsonMissingPath('data.0.user.email')
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonStructure([
+                'data',
+                'links' => ['first', 'last', 'prev', 'next'],
+                'meta' => ['current_page', 'from', 'last_page', 'per_page', 'to', 'total'],
+            ]);
 
-        $this->assertIsArray($response->json());
+        $this->assertIsArray($response->json('data'));
         $this->assertEqualsCanonicalizing(
             ['id', 'name'],
-            array_keys($response->json('0.user'))
+            array_keys($response->json('data.0.user'))
         );
     }
 

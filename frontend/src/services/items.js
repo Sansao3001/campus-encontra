@@ -10,9 +10,23 @@ function normalizeItem(data) {
   return data?.data ?? data ?? null
 }
 
-export async function fetchItems() {
-  const response = await api.get('/items')
-  return normalizeCollection(response.data)
+export async function fetchItems(params = {}) {
+  const response = await api.get('/items', { params })
+  const data = response.data
+
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      meta: null,
+      links: null,
+    }
+  }
+
+  return {
+    items: normalizeCollection(data),
+    meta: data?.meta ?? null,
+    links: data?.links ?? null,
+  }
 }
 
 export async function fetchItem(id) {

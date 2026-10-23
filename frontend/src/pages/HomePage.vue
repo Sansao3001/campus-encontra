@@ -52,47 +52,13 @@
       </v-row>
     </section>
 
-    <v-card class="filters-card mb-6" rounded="xl" elevation="0">
-      <v-card-text class="pa-4 pa-md-6">
-        <v-row density="compact" align="center">
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="search"
-              label="Pesquisar objectos"
-              placeholder="Ex.: mochila, telefone, carteira"
-              prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="comfortable"
-              bg-color="white"
-              clearable
-              hide-details
-              aria-label="Pesquisar objectos perdidos e encontrados"
-            />
-          </v-col>
-
-          <v-col cols="12" md="6">
-            <div
-              class="d-flex flex-wrap ga-2 justify-md-end mt-4 mt-md-0"
-              role="group"
-              aria-label="Filtrar por tipo de objecto"
-            >
-              <v-btn
-                v-for="filter in filters"
-                :key="filter.value"
-                :variant="activeFilter === filter.value ? 'flat' : 'outlined'"
-                color="primary"
-                rounded="lg"
-                :prepend-icon="filter.icon"
-                :aria-pressed="activeFilter === filter.value"
-                @click="activeFilter = filter.value"
-              >
-                {{ filter.label }}
-              </v-btn>
-            </div>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <ItemFilters
+      v-model:search="search"
+      v-model:type="activeFilter"
+      v-model:status="activeStatus"
+      :has-active-filters="hasActiveFilters"
+      @clear="clearFilters"
+    />
 
     <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-4">
       <div>
@@ -109,7 +75,8 @@
         color="primary"
         prepend-icon="mdi-refresh"
         :loading="loading"
-        @click="loadItems"
+        :disabled="loading"
+        @click="reloadItems"
       >
         Actualizar
       </v-btn>
@@ -132,16 +99,16 @@
     >
       <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between ga-3">
         <span>{{ error }}</span>
-        <v-btn color="error" variant="flat" rounded="lg" @click="loadItems">
+        <v-btn color="error" variant="flat" rounded="lg" @click="reloadItems">
           Tentar novamente
         </v-btn>
       </div>
     </v-alert>
 
     <template v-else>
-      <v-row v-if="filteredItems.length > 0">
+      <v-row v-if="items.length > 0">
         <v-col
-          v-for="item in filteredItems"
+          v-for="item in items"
           :key="item.id"
           cols="12"
           sm="6"
@@ -152,7 +119,7 @@
       </v-row>
 
       <EmptyState
-        v-else-if="items.length === 0"
+        v-else-if="!hasActiveFilters"
         icon="mdi-bag-personal-outline"
         title="Ainda não há objectos publicados"
         description="Sê a primeira pessoa a publicar um objecto perdido ou encontrado no campus."
@@ -181,89 +148,170 @@
           </v-btn>
         </template>
       </EmptyState>
+
+      <v-pagination
+        v-if="pagination.last_page > 1"
+        :model-value="pagination.current_page"
+        :length="pagination.last_page"
+        :total-visible="5"
+        rounded="circle"
+        density="comfortable"
+        class="mt-8"
+        @update:model-value="changePage"
+      />
     </template>
   </v-container>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ItemCard from '@/components/ItemCard.vue'
+import ItemFilters from '@/components/ItemFilters.vue'
 import { getApiErrorMessage } from '@/utils/errors'
 import { fetchItems } from '@/services/items'
 
-const filters = [
-  { value: 'all', label: 'Todos', icon: 'mdi-view-grid-outline' },
-  { value: 'lost', label: 'Perdidos', icon: 'mdi-magnify' },
-  { value: 'found', label: 'Encontrados', icon: 'mdi-check-circle-outline' },
-]
+const PER_PAGE = 12
+const FILTER_DEBOUNCE_MS = 300
 
 const items = ref([])
 const search = ref('')
 const activeFilter = ref('all')
+const activeStatus = ref('all')
+const page = ref(1)
+const pagination = ref(emptyPagination())
 const loading = ref(true)
 const error = ref('')
 
-const filteredItems = computed(() => {
-  const term = search.value.trim().toLowerCase()
+let filterTimer = null
+let requestId = 0
 
-  return items.value.filter((item) => {
-    const matchesType = activeFilter.value === 'all' || item.type === activeFilter.value
-
-    if (!matchesType) return false
-    if (!term) return true
-
-    const searchable = [
-      item.title,
-      item.description,
-      item.category,
-      item.location,
-      item.user?.name,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-
-    return searchable.includes(term)
-  })
-})
+const hasActiveFilters = computed(() => (
+  (search.value ?? '').trim() !== ''
+  || activeFilter.value !== 'all'
+  || activeStatus.value !== 'all'
+))
 
 const resultsLabel = computed(() => {
   if (loading.value) return 'A carregar objectos...'
+  if (error.value) return 'Não foi possível carregar os objectos'
 
-  const visible = filteredItems.value.length
-  const total = items.value.length
+  const total = pagination.value.total
 
-  if (total === 0) return 'Nenhum objecto publicado'
-  if (visible === total) {
-    return `${visible} ${visible === 1 ? 'objecto' : 'objectos'}`
+  if (total === 0) {
+    return hasActiveFilters.value
+      ? 'Sem resultados para estes filtros'
+      : 'Nenhum objecto publicado'
   }
 
-  return `${visible} de ${total} objectos`
+  const from = pagination.value.from ?? 1
+  const to = pagination.value.to ?? total
+
+  if (from === 1 && to === total) {
+    return `${total} ${total === 1 ? 'objecto' : 'objectos'}`
+  }
+
+  return `${from}–${to} de ${total} objectos`
 })
 
+function emptyPagination() {
+  return {
+    current_page: 1,
+    last_page: 1,
+    per_page: PER_PAGE,
+    total: 0,
+    from: null,
+    to: null,
+  }
+}
+
+function buildParams() {
+  const params = {
+    page: page.value,
+    per_page: PER_PAGE,
+  }
+
+  const term = (search.value ?? '').trim()
+
+  if (term) params.q = term
+  if (activeFilter.value !== 'all') params.type = activeFilter.value
+  if (activeStatus.value !== 'all') params.status = activeStatus.value
+
+  return params
+}
+
 async function loadItems() {
+  const currentRequest = ++requestId
+
   loading.value = true
   error.value = ''
 
   try {
-    items.value = await fetchItems()
+    const result = await fetchItems(buildParams())
+
+    if (currentRequest !== requestId) return
+
+    items.value = result.items
+    pagination.value = result.meta ?? emptyPagination()
+
+    if (result.meta?.current_page) {
+      page.value = result.meta.current_page
+    }
   } catch (requestError) {
+    if (currentRequest !== requestId) return
+
     error.value = getApiErrorMessage(
       requestError,
       'Não foi possível carregar os objectos. Tenta novamente.',
     )
+    items.value = []
+    pagination.value = emptyPagination()
   } finally {
-    loading.value = false
+    if (currentRequest === requestId) {
+      loading.value = false
+    }
   }
+}
+
+function scheduleFilterReload() {
+  requestId += 1
+  page.value = 1
+
+  window.clearTimeout(filterTimer)
+  filterTimer = window.setTimeout(loadItems, FILTER_DEBOUNCE_MS)
+}
+
+watch(
+  [search, activeFilter, activeStatus],
+  scheduleFilterReload,
+  { flush: 'sync' },
+)
+
+function changePage(nextPage) {
+  if (nextPage === page.value) return
+
+  page.value = nextPage
+  loadItems()
 }
 
 function clearFilters() {
   search.value = ''
   activeFilter.value = 'all'
+  activeStatus.value = 'all'
+  page.value = 1
+}
+
+function reloadItems() {
+  window.clearTimeout(filterTimer)
+  loadItems()
 }
 
 onMounted(loadItems)
+
+onBeforeUnmount(() => {
+  window.clearTimeout(filterTimer)
+  requestId += 1
+})
 </script>
 
 <style scoped>
@@ -295,9 +343,5 @@ onMounted(loadItems)
   border: 1px solid rgba(22, 78, 128, 0.1);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.65);
-}
-
-.filters-card {
-  border: 1px solid rgba(11, 31, 58, 0.08);
 }
 </style>
