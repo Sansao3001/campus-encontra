@@ -42,7 +42,10 @@ class AuthTest extends TestCase
         $response = $this->postJson('/api/register', []);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'email', 'password']);
+            ->assertJsonValidationErrors(['name', 'email', 'password'])
+            ->assertJsonPath('errors.name.0', 'Indica o teu nome.')
+            ->assertJsonPath('errors.email.0', 'Indica o teu email.')
+            ->assertJsonPath('errors.password.0', 'Indica uma palavra-passe.');
     }
 
     public function test_registo_rejeita_email_duplicado(): void
@@ -56,7 +59,8 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors('email');
+            ->assertJsonValidationErrors('email')
+            ->assertJsonPath('errors.email.0', 'Já existe uma conta com este email.');
     }
 
     public function test_registo_rejeita_password_com_menos_de_oito_caracteres(): void

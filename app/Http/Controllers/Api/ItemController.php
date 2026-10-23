@@ -21,6 +21,19 @@ class ItemController extends Controller
         );
     }
 
+    // Listar apenas os itens do utilizador autenticado
+    public function mine(Request $request)
+    {
+        $items = Item::with(['user:id,name'])
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->get();
+
+        return response()->json(
+            ItemResource::collection($items)->resolve()
+        );
+    }
+
     // Consultar um item: operação pública
     public function show(Item $item)
     {
@@ -34,20 +47,10 @@ class ItemController extends Controller
     // Criar um item para o utilizador autenticado
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'category' => 'required|string|max:100',
-            'description' => 'required|string',
-            'location' => 'required|string|max:255',
-            'occurrence_date' => 'required|date',
-            'photo_path' => 'nullable|string|max:255',
-            'type' => 'required|in:lost,found',
-
-            // A autoria é determinada pelo servidor e o estado inicial
-            // é sempre "open". O cliente não pode atribuir nenhum dos dois.
-            'user_id' => 'prohibited',
-            'status' => 'prohibited',
-        ]);
+        $validated = $request->validate(
+            $this->storeRules(),
+            $this->validationMessages()
+        );
 
         // O estado inicial é definido pelo servidor, não pelo cliente.
         // Atribuí-lo explicitamente garante que o modelo devolvido já o contém.
@@ -74,20 +77,10 @@ class ItemController extends Controller
             'Não tens permissão para alterar este item.'
         );
 
-        $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'category' => 'sometimes|required|string|max:100',
-            'description' => 'sometimes|required|string',
-            'location' => 'sometimes|required|string|max:255',
-            'occurrence_date' => 'sometimes|required|date',
-            'photo_path' => 'nullable|string|max:255',
-            'type' => 'sometimes|required|in:lost,found',
-
-            // A autoria e o estado não são alteráveis por esta rota.
-            // O estado será alterado apenas pelo fluxo de recuperação.
-            'user_id' => 'prohibited',
-            'status' => 'prohibited',
-        ]);
+        $validated = $request->validate(
+            $this->updateRules(),
+            $this->validationMessages()
+        );
 
         $item->update($validated);
         $item->load(['user:id,name']);
@@ -111,5 +104,66 @@ class ItemController extends Controller
         return response()->json([
             'message' => 'Item eliminado com sucesso.',
         ]);
+    }
+
+    private function storeRules(): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'category' => ['required', 'string', 'max:100'],
+            'description' => ['required', 'string'],
+            'location' => ['required', 'string', 'max:255'],
+            'occurrence_date' => ['required', 'date'],
+            'photo_path' => ['nullable', 'string', 'max:255'],
+            'type' => ['required', 'in:lost,found'],
+
+            // A autoria é determinada pelo servidor e o estado inicial
+            // é sempre "open". O cliente não pode atribuir nenhum dos dois.
+            'user_id' => ['prohibited'],
+            'status' => ['prohibited'],
+        ];
+    }
+
+    private function updateRules(): array
+    {
+        return [
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'category' => ['sometimes', 'required', 'string', 'max:100'],
+            'description' => ['sometimes', 'required', 'string'],
+            'location' => ['sometimes', 'required', 'string', 'max:255'],
+            'occurrence_date' => ['sometimes', 'required', 'date'],
+            'photo_path' => ['nullable', 'string', 'max:255'],
+            'type' => ['sometimes', 'required', 'in:lost,found'],
+
+            // A autoria e o estado não são alteráveis por esta rota.
+            // O estado será alterado apenas pelo fluxo de recuperação.
+            'user_id' => ['prohibited'],
+            'status' => ['prohibited'],
+        ];
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'title.required' => 'Indica o título do objecto.',
+            'title.string' => 'O título deve ser texto.',
+            'title.max' => 'O título não pode ter mais de 255 caracteres.',
+            'category.required' => 'Indica a categoria do objecto.',
+            'category.string' => 'A categoria deve ser texto.',
+            'category.max' => 'A categoria não pode ter mais de 100 caracteres.',
+            'description.required' => 'Indica uma descrição do objecto.',
+            'description.string' => 'A descrição deve ser texto.',
+            'location.required' => 'Indica o local onde o objecto foi perdido ou encontrado.',
+            'location.string' => 'O local deve ser texto.',
+            'location.max' => 'O local não pode ter mais de 255 caracteres.',
+            'occurrence_date.required' => 'Indica a data da ocorrência.',
+            'occurrence_date.date' => 'Indica uma data de ocorrência válida.',
+            'photo_path.string' => 'O caminho da fotografia deve ser texto.',
+            'photo_path.max' => 'O caminho da fotografia não pode ter mais de 255 caracteres.',
+            'type.required' => 'Indica se o objecto foi perdido ou encontrado.',
+            'type.in' => 'O tipo deve ser "perdido" ou "encontrado".',
+            'user_id.prohibited' => 'O autor do objecto é definido pelo servidor.',
+            'status.prohibited' => 'O estado do objecto é definido pelo servidor.',
+        ];
     }
 }

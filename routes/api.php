@@ -15,11 +15,14 @@ Route::apiResource('items', ItemController::class)
 
 // Rotas protegidas: exigem autenticação
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
 
-Route::post('/logout', [AuthController::class, 'logout']);
     // Criar, actualizar e eliminar itens
     Route::apiResource('items', ItemController::class)
         ->except(['index', 'show']);
+
+    // Listar apenas os itens do utilizador autenticado
+    Route::get('/my-items', [ItemController::class, 'mine']);
 
     // Consultar o utilizador autenticado
     Route::get('/user', function (Request $request) {

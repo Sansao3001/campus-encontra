@@ -67,6 +67,57 @@ class ItemTest extends TestCase
         );
     }
 
+    public function test_listagem_pessoal_devolve_apenas_itens_do_utilizador_autenticado(): void
+    {
+        $user = User::factory()->create(['name' => 'Dono dos Objectos']);
+        $otherUser = User::factory()->create();
+        $ownItem = $this->makeItem($user, ['title' => 'Objecto do dono']);
+        $this->makeItem($otherUser, ['title' => 'Objecto alheio']);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/my-items');
+
+        $response->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $ownItem->id)
+            ->assertJsonPath('0.title', 'Objecto do dono')
+            ->assertJsonPath('0.user.name', 'Dono dos Objectos')
+            ->assertJsonMissingPath('0.user.email');
+    }
+
+    public function test_listagem_pessoal_vazia_devolve_array(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/my-items');
+
+        $response->assertOk();
+        $this->assertIsArray($response->json());
+        $response->assertJsonCount(0);
+    }
+
+    public function test_visitante_nao_acessa_listagem_pessoal(): void
+    {
+        $this->getJson('/api/my-items')->assertUnauthorized();
+    }
+
+    public function test_item_eliminado_desaparece_da_listagem_pessoal(): void
+    {
+        $user = User::factory()->create();
+        $item = $this->makeItem($user);
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson('/api/items/'.$item->id)->assertOk();
+
+        $this->getJson('/api/my-items')
+            ->assertOk()
+            ->assertJsonCount(0);
+    }
+
     public function test_visitante_nao_cria_item(): void
     {
         $this->postJson('/api/items', $this->itemData())
@@ -120,7 +171,8 @@ class ItemTest extends TestCase
         ]));
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors('user_id');
+            ->assertJsonValidationErrors('user_id')
+            ->assertJsonPath('errors.user_id.0', 'O autor do objecto é definido pelo servidor.');
 
         $this->assertDatabaseCount('items', 0);
     }
@@ -136,7 +188,8 @@ class ItemTest extends TestCase
         ]));
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertJsonValidationErrors('status')
+            ->assertJsonPath('errors.status.0', 'O estado do objecto é definido pelo servidor.');
 
         $this->assertDatabaseCount('items', 0);
     }
@@ -157,7 +210,12 @@ class ItemTest extends TestCase
                 'location',
                 'occurrence_date',
                 'type',
-            ]);
+            ])
+            ->assertJsonPath('errors.title.0', 'Indica o título do objecto.')
+            ->assertJsonPath('errors.category.0', 'Indica a categoria do objecto.')
+            ->assertJsonPath('errors.location.0', 'Indica o local onde o objecto foi perdido ou encontrado.')
+            ->assertJsonPath('errors.occurrence_date.0', 'Indica a data da ocorrência.')
+            ->assertJsonPath('errors.type.0', 'Indica se o objecto foi perdido ou encontrado.');
     }
 
     public function test_tipo_invalido_e_rejeitado(): void
@@ -171,7 +229,8 @@ class ItemTest extends TestCase
         ]));
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors('type');
+            ->assertJsonValidationErrors('type')
+            ->assertJsonPath('errors.type.0', 'O tipo deve ser "perdido" ou "encontrado".');
     }
 
     public function test_dono_actualiza_item_sem_alterar_estado(): void
@@ -193,6 +252,24 @@ class ItemTest extends TestCase
 
         $this->assertSame('Mochila azul actualizada', $item->title);
         $this->assertSame('open', $item->status);
+    }
+
+    public function test_actualizacao_devolve_mensagens_de_validacao_em_portugues(): void
+    {
+        $user = User::factory()->create();
+        $item = $this->makeItem($user);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson('/api/items/'.$item->id, [
+            'title' => '',
+            'type' => 'outro',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['title', 'type'])
+            ->assertJsonPath('errors.title.0', 'Indica o título do objecto.')
+            ->assertJsonPath('errors.type.0', 'O tipo deve ser "perdido" ou "encontrado".');
     }
 
     public function test_dono_nao_pode_alterar_estado_directamente(): void

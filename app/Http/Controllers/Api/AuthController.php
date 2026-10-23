@@ -17,6 +17,17 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
+        ], [
+            'name.required' => 'Indica o teu nome.',
+            'name.string' => 'O nome deve ser texto.',
+            'name.max' => 'O nome não pode ter mais de 255 caracteres.',
+            'email.required' => 'Indica o teu email.',
+            'email.email' => 'Indica um email válido.',
+            'email.max' => 'O email não pode ter mais de 255 caracteres.',
+            'email.unique' => 'Já existe uma conta com este email.',
+            'password.required' => 'Indica uma palavra-passe.',
+            'password.string' => 'A palavra-passe deve ser texto.',
+            'password.min' => 'A palavra-passe deve ter pelo menos 8 caracteres.',
         ]);
 
         $user = User::create([
@@ -40,6 +51,11 @@ class AuthController extends Controller
         $validated = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
+        ], [
+            'email.required' => 'Indica o teu email.',
+            'email.email' => 'Indica um email válido.',
+            'password.required' => 'Indica a tua palavra-passe.',
+            'password.string' => 'A palavra-passe deve ser texto.',
         ]);
 
         $user = User::where('email', $validated['email'])->first();

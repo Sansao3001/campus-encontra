@@ -16,6 +16,7 @@ import {
   VChip,
   VCol,
   VContainer,
+  VDialog,
   VDivider,
   VFooter,
   VIcon,
@@ -25,9 +26,11 @@ import {
   VMain,
   VNavigationDrawer,
   VRow,
+  VSelect,
   VSkeletonLoader,
   VSpacer,
   VTextField,
+  VTextarea,
 } from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
@@ -54,6 +57,7 @@ const components = {
   VChip,
   VCol,
   VContainer,
+  VDialog,
   VDivider,
   VFooter,
   VIcon,
@@ -63,9 +67,11 @@ const components = {
   VMain,
   VNavigationDrawer,
   VRow,
+  VSelect,
   VSkeletonLoader,
   VSpacer,
   VTextField,
+  VTextarea,
 }
 
 const vuetify = createVuetify({
