@@ -18,6 +18,16 @@
         <div class="d-flex flex-wrap justify-end ga-2">
           <StatusChip kind="type" :value="item.type" />
           <StatusChip kind="status" :value="item.status" />
+          <v-chip
+            v-if="item.is_moderated"
+            color="error"
+            variant="tonal"
+            size="small"
+            label
+            prepend-icon="mdi-eye-off-outline"
+          >
+            Retirado
+          </v-chip>
         </div>
       </div>
 
@@ -34,6 +44,19 @@
       <p class="text-body-2 text-medium-emphasis text-clamp-3 mb-4">
         {{ item.description || 'Sem descrição disponível.' }}
       </p>
+
+      <v-alert
+        v-if="item.is_moderated"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+      >
+        Este anúncio foi retirado de publicação pela administração.
+        <span v-if="item.moderation_reason">
+          Razão: {{ item.moderation_reason }}
+        </span>
+      </v-alert>
 
       <div class="d-flex flex-column ga-2 text-body-2 text-medium-emphasis">
         <span class="d-flex align-center ga-2">

@@ -68,6 +68,13 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->isSuspended()) {
+            abort(
+                403,
+                'A tua conta está suspensa. Contacta a administração do CampusEncontra.'
+            );
+        }
+
         $token = $user->createToken('campus-encontra')->plainTextToken;
 
         return response()->json([

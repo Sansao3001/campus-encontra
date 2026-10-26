@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { authState } from '@/stores/auth'
+import { authState, restoreSession } from '@/stores/auth'
 
+import AdminPage from '@/pages/AdminPage.vue'
 import ClaimsPage from '@/pages/ClaimsPage.vue'
 import EditItemPage from '@/pages/EditItemPage.vue'
 import HomePage from '@/pages/HomePage.vue'
@@ -63,6 +64,12 @@ const routes = [
     meta: { title: 'Reclamações', requiresAuth: true },
   },
   {
+    path: '/admin/:section?',
+    name: 'admin',
+    component: AdminPage,
+    meta: { title: 'Administração', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: NotFoundPage,
@@ -79,11 +86,26 @@ const router = createRouter({
   },
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (to.meta?.requiresAuth && !authState.token) {
     return {
       name: 'login',
       query: { redirect: to.fullPath },
+    }
+  }
+
+  if (to.meta?.requiresAdmin) {
+    const user = authState.user || await restoreSession()
+
+    if (!user) {
+      return {
+        name: 'login',
+        query: { redirect: to.fullPath },
+      }
+    }
+
+    if (user.role !== 'admin') {
+      return { name: 'home' }
     }
   }
 

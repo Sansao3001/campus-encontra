@@ -30,7 +30,7 @@ class ItemController extends Controller
             $this->indexValidationMessages()
         );
 
-        $query = Item::query()->with(['user:id,name']);
+        $query = Item::query()->visible()->with(['user:id,name']);
 
         $term = isset($validated['q']) ? trim($validated['q']) : null;
 
@@ -92,9 +92,19 @@ class ItemController extends Controller
         );
     }
 
-    // Consultar um item: operação pública
-    public function show(Item $item)
+    // Consultar um item: operação pública. Anúncios retirados pela moderação
+    // só ficam visíveis para o próprio autor ou para administradores.
+    public function show(Request $request, Item $item)
     {
+        $viewer = $request->user('sanctum');
+
+        if ($item->isModerated()) {
+            $canView = $viewer !== null
+                && ($viewer->id === $item->user_id || $viewer->isAdmin());
+
+            abort_unless($canView, 404);
+        }
+
         $item->load(['user:id,name']);
 
         return response()->json(
@@ -298,6 +308,9 @@ class ItemController extends Controller
             'status' => ['prohibited'],
             'photo_path' => ['prohibited'],
             'remove_photo' => ['prohibited'],
+            'moderated_at' => ['prohibited'],
+            'moderation_reason' => ['prohibited'],
+            'moderated_by_id' => ['prohibited'],
         ];
     }
 
@@ -318,6 +331,9 @@ class ItemController extends Controller
             'user_id' => ['prohibited'],
             'status' => ['prohibited'],
             'photo_path' => ['prohibited'],
+            'moderated_at' => ['prohibited'],
+            'moderation_reason' => ['prohibited'],
+            'moderated_by_id' => ['prohibited'],
         ];
     }
 

@@ -29,6 +29,9 @@ class ItemResource extends JsonResource
             'has_photo' => $this->photo_path !== null,
             'type' => $this->type,
             'status' => $this->status,
+            'is_moderated' => $this->isModerated(),
+            'moderated_at' => $this->moderated_at,
+            'moderation_reason' => $this->moderated_at ? $this->moderation_reason : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 

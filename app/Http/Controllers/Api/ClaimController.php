@@ -79,6 +79,10 @@ class ClaimController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($lockedItem->isModerated()) {
+                abort(409, 'Este anúncio foi retirado e já não está disponível para reclamações.');
+            }
+
             if ($lockedItem->status !== 'open') {
                 abort(409, 'Este objecto já não está disponível para reclamações.');
             }

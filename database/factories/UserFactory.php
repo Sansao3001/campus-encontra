@@ -42,4 +42,19 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_ADMIN,
+        ]);
+    }
+
+    public function suspended(string $reason = 'Conta suspensa para teste.'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'suspended_at' => now(),
+            'suspension_reason' => $reason,
+        ]);
+    }
 }

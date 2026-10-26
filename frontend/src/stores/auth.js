@@ -22,6 +22,7 @@ let restorePromise = null
 export const authState = readonly(state)
 export const hasSession = computed(() => Boolean(state.token))
 export const isAuthenticated = computed(() => Boolean(state.token && state.user))
+export const isAdmin = computed(() => state.user?.role === 'admin')
 
 function normalizeUser(data) {
   const user = data?.data ?? data

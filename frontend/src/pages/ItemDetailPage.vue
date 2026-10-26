@@ -53,6 +53,19 @@
     </v-alert>
 
     <template v-else-if="item">
+      <v-alert
+        v-if="item.is_moderated"
+        type="warning"
+        variant="tonal"
+        prominent
+        class="mb-4"
+      >
+        Este anúncio foi retirado de publicação pela administração.
+        <span v-if="item.moderation_reason">
+          Razão: {{ item.moderation_reason }}
+        </span>
+      </v-alert>
+
       <v-card rounded="xl" elevation="0" class="detail-card">
         <v-card-text class="pa-6 pa-md-8">
           <div class="d-flex flex-wrap ga-2 mb-4">
@@ -139,6 +152,16 @@
                 class="mb-4"
               >
                 {{ claimSuccess }}
+              </v-alert>
+
+              <v-alert
+                v-if="reportSuccess"
+                type="success"
+                variant="tonal"
+                density="compact"
+                class="mb-4"
+              >
+                {{ reportSuccess }}
               </v-alert>
 
               <template v-if="isOwner">
@@ -248,6 +271,24 @@
               >
                 Este objecto já foi devolvido.
               </v-alert>
+
+              <template v-if="authState.user && !isOwner && !item.is_moderated">
+                <v-divider class="my-4" />
+
+                <v-btn
+                  block
+                  color="error"
+                  variant="text"
+                  rounded="lg"
+                  prepend-icon="mdi-flag-outline"
+                  @click="openReportDialog"
+                >
+                  Denunciar anúncio
+                </v-btn>
+                <p class="text-caption text-medium-emphasis text-center mt-2 mb-0">
+                  Usa este canal para sinalizar conteúdo ou comportamento inadequado.
+                </p>
+              </template>
             </v-card-text>
           </v-card>
         </v-col>
@@ -314,6 +355,91 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="reportDialog" max-width="600" persistent>
+      <v-card rounded="xl">
+        <v-card-title class="text-h6 font-weight-bold pt-6 px-6">
+          Denunciar anúncio
+        </v-card-title>
+
+        <v-card-text class="px-6">
+          <p class="text-body-2 text-medium-emphasis mb-4">
+            A denúncia será analisada pela administração. Não uses este canal para
+            mensagens de recuperação do objecto.
+          </p>
+
+          <v-select
+            v-model="reportTarget"
+            :items="reportTargetOptions"
+            item-title="title"
+            item-value="value"
+            label="O que pretendes denunciar?"
+            variant="outlined"
+            density="compact"
+            class="mb-4"
+            :disabled="reportSubmitting"
+          />
+
+          <v-select
+            v-model="reportReason"
+            :items="reportReasonOptions"
+            item-title="title"
+            item-value="value"
+            label="Motivo"
+            variant="outlined"
+            density="compact"
+            class="mb-4"
+            :disabled="reportSubmitting"
+          />
+
+          <v-textarea
+            v-model="reportDetails"
+            label="Detalhes (opcional)"
+            placeholder="Descreve o que consideras inadequado, sem incluíres dados sensíveis."
+            rows="4"
+            maxlength="2000"
+            counter="2000"
+            auto-grow
+            :disabled="reportSubmitting"
+          />
+
+          <v-alert
+            v-if="reportError"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-4"
+          >
+            {{ reportError }}
+          </v-alert>
+        </v-card-text>
+
+        <v-card-actions class="pa-6">
+          <v-spacer />
+
+          <v-btn
+            variant="text"
+            color="primary"
+            rounded="lg"
+            :disabled="reportSubmitting"
+            @click="closeReportDialog"
+          >
+            Cancelar
+          </v-btn>
+
+          <v-btn
+            color="error"
+            variant="flat"
+            rounded="lg"
+            :loading="reportSubmitting"
+            :disabled="reportSubmitting"
+            @click="submitReport"
+          >
+            Enviar denúncia
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -323,11 +449,13 @@ import { useRoute } from 'vue-router'
 import StatusChip from '@/components/StatusChip.vue'
 import { createClaim, fetchMyClaims } from '@/services/claims'
 import { fetchItem } from '@/services/items'
+import { createReport } from '@/services/reports'
 import { authState } from '@/stores/auth'
 import { getClaimFlowLabels } from '@/utils/claim'
 import { getApiErrorMessage } from '@/utils/errors'
 import { formatDate, formatDateTime } from '@/utils/format'
 import { getTypeConfig } from '@/utils/item'
+import { reportReasonOptions } from '@/utils/report'
 
 const props = defineProps({
   id: {
@@ -350,6 +478,14 @@ const claimMessage = ref('')
 const claimSubmitting = ref(false)
 const claimError = ref('')
 
+const reportSuccess = ref('')
+const reportDialog = ref(false)
+const reportTarget = ref('item')
+const reportReason = ref('')
+const reportDetails = ref('')
+const reportSubmitting = ref(false)
+const reportError = ref('')
+
 const typeConfig = computed(() => getTypeConfig(item.value?.type))
 const claimLabels = computed(() => getClaimFlowLabels(item.value?.type))
 const isOwner = computed(() => (
@@ -371,6 +507,22 @@ const claimDialogIntro = computed(() => (
     ? 'Indica onde e como encontraste o objecto. O responsável poderá aceitar ou rejeitar a informação.'
     : 'Descreve porque este objecto é teu. O responsável poderá aceitar ou rejeitar a reclamação.'
 ))
+
+const reportTargetOptions = computed(() => {
+  const options = [{
+    title: `Este anúncio: ${item.value?.title || 'objecto'}`,
+    value: 'item',
+  }]
+
+  if (item.value?.user?.id) {
+    options.push({
+      title: `Comportamento de ${item.value.user.name || 'autor do anúncio'}`,
+      value: 'user',
+    })
+  }
+
+  return options
+})
 
 const existingClaimMessage = computed(() => {
   if (!existingClaim.value) return ''
@@ -403,6 +555,7 @@ async function loadItem() {
   item.value = null
   existingClaim.value = null
   claimSuccess.value = ''
+  reportSuccess.value = ''
 
   try {
     item.value = await fetchItem(props.id)
@@ -456,6 +609,64 @@ async function submitClaim() {
     )
   } finally {
     claimSubmitting.value = false
+  }
+}
+
+function openReportDialog() {
+  reportTarget.value = 'item'
+  reportReason.value = ''
+  reportDetails.value = ''
+  reportError.value = ''
+  reportDialog.value = true
+}
+
+function closeReportDialog() {
+  if (reportSubmitting.value) return
+
+  reportDialog.value = false
+  reportError.value = ''
+}
+
+async function submitReport() {
+  if (reportSubmitting.value || !item.value) return
+
+  reportError.value = ''
+
+  if (!reportReason.value) {
+    reportError.value = 'Escolhe um motivo para a denúncia.'
+    return
+  }
+
+  reportSubmitting.value = true
+  reportSuccess.value = ''
+
+  try {
+    const payload = {
+      target_type: reportTarget.value,
+      target_id: reportTarget.value === 'item'
+        ? item.value.id
+        : item.value.user_id,
+      reason: reportReason.value,
+      details: reportDetails.value.trim() || null,
+    }
+
+    if (reportTarget.value === 'user') {
+      payload.item_id = item.value.id
+    }
+
+    await createReport(payload)
+
+    reportSuccess.value = 'Denúncia registada. A administração irá analisá-la.'
+    reportDialog.value = false
+    reportReason.value = ''
+    reportDetails.value = ''
+  } catch (requestError) {
+    reportError.value = getApiErrorMessage(
+      requestError,
+      'Não foi possível enviar a denúncia. Tenta novamente.',
+    )
+  } finally {
+    reportSubmitting.value = false
   }
 }
 

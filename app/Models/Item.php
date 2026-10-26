@@ -22,12 +22,16 @@ class Item extends Model
         'photo_path',
         'type',
         'status',
+        'moderated_at',
+        'moderation_reason',
+        'moderated_by_id',
     ];
 
     protected function casts(): array
     {
         return [
             'occurrence_date' => 'date',
+            'moderated_at' => 'datetime',
         ];
     }
 
@@ -36,9 +40,29 @@ class Item extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function moderatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'moderated_by_id');
+    }
+
     public function claims(): HasMany
     {
         return $this->hasMany(Claim::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class);
+    }
+
+    public function isModerated(): bool
+    {
+        return $this->moderated_at !== null;
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query->whereNull('moderated_at');
     }
 
     public static function photoDisk(): string

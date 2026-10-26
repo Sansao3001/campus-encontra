@@ -177,19 +177,31 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authState, hasSession, logout } from '@/stores/auth'
+import { authState, hasSession, isAdmin, logout } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const drawer = ref(false)
 const loggingOut = ref(false)
 
-const primaryLinks = [
-  { name: 'home', label: 'Início', icon: 'mdi-home-outline' },
-  { name: 'publish', label: 'Publicar', icon: 'mdi-plus-circle-outline' },
-  { name: 'my-items', label: 'Os meus objectos', icon: 'mdi-bag-personal-outline' },
-  { name: 'claims', label: 'Reclamações', icon: 'mdi-handshake-outline' },
-]
+const primaryLinks = computed(() => {
+  const links = [
+    { name: 'home', label: 'Início', icon: 'mdi-home-outline' },
+    { name: 'publish', label: 'Publicar', icon: 'mdi-plus-circle-outline' },
+    { name: 'my-items', label: 'Os meus objectos', icon: 'mdi-bag-personal-outline' },
+    { name: 'claims', label: 'Reclamações', icon: 'mdi-handshake-outline' },
+  ]
+
+  if (isAdmin.value) {
+    links.push({
+      name: 'admin',
+      label: 'Administração',
+      icon: 'mdi-shield-account-outline',
+    })
+  }
+
+  return links
+})
 
 const allLinks = primaryLinks
 
