@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ItemResource;
 use App\Models\Claim;
 use App\Models\Item;
+use App\Services\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -14,13 +15,22 @@ use Throwable;
 
 class ItemController extends Controller
 {
-    private const PHOTO_RULES = [
-        'nullable',
-        'image',
-        'mimes:jpg,jpeg,png,webp',
-        'max:5120',
-        'dimensions:max_width=6000,max_height=6000',
-    ];
+    public function __construct(private SettingsService $settings)
+    {
+    }
+
+    private function photoRules(): array
+    {
+        $maxKb = (int) $this->settings->get('operations.max_photo_kb', 5120);
+
+        return [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:'.$maxKb,
+            'dimensions:max_width=6000,max_height=6000',
+        ];
+    }
 
     // Listar os itens: operação pública, com pesquisa, filtros e paginação
     public function index(Request $request)
@@ -298,7 +308,7 @@ class ItemController extends Controller
             'description' => ['required', 'string', 'max:5000'],
             'location' => ['required', 'string', 'max:255'],
             'occurrence_date' => ['required', 'date'],
-            'photo' => self::PHOTO_RULES,
+            'photo' => $this->photoRules(),
             'type' => ['required', 'in:lost,found'],
 
             // A autoria é determinada pelo servidor e o estado inicial
@@ -322,7 +332,7 @@ class ItemController extends Controller
             'description' => ['sometimes', 'required', 'string', 'max:5000'],
             'location' => ['sometimes', 'required', 'string', 'max:255'],
             'occurrence_date' => ['sometimes', 'required', 'date'],
-            'photo' => self::PHOTO_RULES,
+            'photo' => $this->photoRules(),
             'remove_photo' => ['sometimes', 'boolean'],
             'type' => ['sometimes', 'required', 'in:lost,found'],
 
@@ -339,6 +349,10 @@ class ItemController extends Controller
 
     private function validationMessages(): array
     {
+        $maxPhotoMb = max(1, (int) round(
+            ((int) $this->settings->get('operations.max_photo_kb', 5120)) / 1024,
+        ));
+
         return [
             'title.required' => 'Indica o título do objecto.',
             'title.string' => 'O título deve ser texto.',
@@ -356,7 +370,7 @@ class ItemController extends Controller
             'occurrence_date.date' => 'Indica uma data de ocorrência válida.',
             'photo.image' => 'A fotografia deve ser uma imagem.',
             'photo.mimes' => 'A fotografia deve ser JPEG, PNG ou WebP.',
-            'photo.max' => 'A fotografia não pode ter mais de 5 MB.',
+            'photo.max' => 'A fotografia não pode ter mais de '.$maxPhotoMb.' MB.',
             'photo.dimensions' => 'A fotografia não pode exceder 6000 por 6000 píxeis.',
             'photo.uploaded' => 'Não foi possível carregar a fotografia. Tenta novamente.',
             'type.required' => 'Indica se o objecto foi perdido ou encontrado.',

@@ -11,9 +11,50 @@ function normalizeCollection(data) {
   }
 }
 
-export async function fetchAdminDashboard() {
-  const response = await api.get('/admin/dashboard')
+export async function fetchAdminDashboard(params = {}) {
+  const response = await api.get('/admin/dashboard', { params })
   return response.data
+}
+
+export async function fetchAdminReporting(params = {}) {
+  const response = await api.get('/admin/reporting', { params })
+  return response.data
+}
+
+export async function fetchAdminSettings() {
+  const response = await api.get('/admin/settings')
+  return response.data
+}
+
+export async function updateAdminSettings(settings) {
+  const response = await api.put('/admin/settings', { settings })
+  return response.data
+}
+
+export async function downloadAdminExport(dataset, params = {}) {
+  const response = await api.get(`/admin/exports/${encodeURIComponent(dataset)}`, {
+    params,
+    responseType: 'blob',
+    timeout: 60000,
+  })
+
+  const disposition = response.headers['content-disposition'] || ''
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)
+  const filename = match
+    ? decodeURIComponent(match[1].trim())
+    : `campus-encontra-${dataset}.csv`
+
+  const objectUrl = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500)
+
+  return filename
 }
 
 export async function fetchAdminUsers(params = {}) {

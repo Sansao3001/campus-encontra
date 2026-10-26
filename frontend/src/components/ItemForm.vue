@@ -42,15 +42,17 @@
       </v-col>
 
       <v-col cols="12" md="6">
-        <v-text-field
+        <v-combobox
           v-model="form.category"
+          :items="categorySuggestions"
           label="Categoria"
           placeholder="Ex.: Material escolar"
           prepend-inner-icon="mdi-shape-outline"
           :error-messages="messagesFor('category')"
           :disabled="submitting"
+          :hint="categoryHint"
+          persistent-hint
           maxlength="100"
-          counter="100"
           required
           @update:model-value="clearError('category')"
         />
@@ -110,7 +112,7 @@
           bg-color="white"
           :error-messages="messagesFor('photo')"
           :disabled="submitting"
-          hint="JPEG, PNG ou WebP, até 5 MB."
+          :hint="`JPEG, PNG ou WebP, até ${photoLimitLabel}.`"
           persistent-hint
           show-size
           @update:model-value="handlePhotoChange"
@@ -159,7 +161,8 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { loadPublicSettings, publicSettings } from '@/stores/settings'
 
 const props = defineProps({
   initialItem: {
@@ -191,6 +194,37 @@ const typeOptions = [
   { title: 'Encontrado', value: 'found' },
 ]
 
+const DEFAULT_CATEGORIES = [
+  'Electrónica',
+  'Documentos',
+  'Roupa',
+  'Chaves',
+  'Material escolar',
+  'Outros',
+]
+
+const categorySuggestions = computed(() => {
+  const configured = publicSettings.settings?.categories
+
+  return Array.isArray(configured) && configured.length
+    ? configured
+    : DEFAULT_CATEGORIES
+})
+
+const maxPhotoKb = computed(() => {
+  const configured = Number(publicSettings.settings?.max_photo_kb)
+
+  return Number.isFinite(configured) && configured >= 512 ? configured : 5120
+})
+
+const maxPhotoBytes = computed(() => maxPhotoKb.value * 1024)
+
+const photoLimitLabel = computed(() => (
+  maxPhotoKb.value % 1024 === 0
+    ? `${maxPhotoKb.value / 1024} MB`
+    : `${maxPhotoKb.value} KB`
+))
+
 const form = reactive({
   title: '',
   category: '',
@@ -200,12 +234,17 @@ const form = reactive({
   type: '',
 })
 
+const categoryHint = computed(() => (
+  categorySuggestions.value.includes(String(form.category ?? '').trim())
+    ? 'Categoria sugerida pela plataforma.'
+    : 'Selecciona uma categoria sugerida ou escreve uma nova.'
+))
+
 const localErrors = ref({})
 const photoFile = ref(null)
 const photoPreview = ref('')
 const removePhoto = ref(false)
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const ALLOWED_PHOTO_EXTENSIONS = /\.(jpe?g|png|webp)$/i
 
@@ -224,7 +263,7 @@ function isValidPhoto(file) {
   const typeAllowed = ALLOWED_PHOTO_TYPES.includes(file.type)
     || (!file.type && ALLOWED_PHOTO_EXTENSIONS.test(file.name))
 
-  return typeAllowed && file.size <= MAX_PHOTO_BYTES
+  return typeAllowed && file.size <= maxPhotoBytes.value
 }
 
 function resetPhotoState(item) {
@@ -250,7 +289,7 @@ function handlePhotoChange(value) {
   if (!isValidPhoto(file)) {
     localErrors.value = {
       ...localErrors.value,
-      photo: 'Selecciona uma imagem JPEG, PNG ou WebP com menos de 5 MB.',
+      photo: `Selecciona uma imagem JPEG, PNG ou WebP com até ${photoLimitLabel.value}.`,
     }
     photoFile.value = null
     photoPreview.value = props.initialItem?.photo_url || ''
@@ -271,6 +310,10 @@ function removeSelectedPhoto() {
 }
 
 onBeforeUnmount(revokePreviewUrl)
+
+onMounted(() => {
+  void loadPublicSettings()
+})
 
 function toDateInput(value) {
   if (!value) return ''
@@ -333,7 +376,7 @@ function clearError(field) {
 function validate() {
   const errors = {}
   const title = form.title.trim()
-  const category = form.category.trim()
+  const category = String(form.category ?? '').trim()
   const description = form.description.trim()
   const location = form.location.trim()
 
@@ -372,7 +415,7 @@ function validate() {
   }
 
   if (photoFile.value && !isValidPhoto(photoFile.value)) {
-    errors.photo = 'Selecciona uma imagem JPEG, PNG ou WebP com menos de 5 MB.'
+    errors.photo = `Selecciona uma imagem JPEG, PNG ou WebP com até ${photoLimitLabel.value}.`
   }
 
   localErrors.value = errors
@@ -386,7 +429,7 @@ function handleSubmit() {
 
   const payload = {
     title: form.title.trim(),
-    category: form.category.trim(),
+    category: String(form.category ?? '').trim(),
     description: form.description.trim(),
     location: form.location.trim(),
     occurrence_date: form.occurrence_date,

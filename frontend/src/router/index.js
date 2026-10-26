@@ -1,16 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authState, restoreSession } from '@/stores/auth'
 
-import AdminPage from '@/pages/AdminPage.vue'
-import ClaimsPage from '@/pages/ClaimsPage.vue'
-import EditItemPage from '@/pages/EditItemPage.vue'
-import HomePage from '@/pages/HomePage.vue'
-import ItemDetailPage from '@/pages/ItemDetailPage.vue'
-import LoginPage from '@/pages/LoginPage.vue'
-import MyItemsPage from '@/pages/MyItemsPage.vue'
-import NotFoundPage from '@/pages/NotFoundPage.vue'
-import PublishItemPage from '@/pages/PublishItemPage.vue'
-import RegisterPage from '@/pages/RegisterPage.vue'
+const AdminPage = () => import('@/pages/AdminPage.vue')
+const ClaimsPage = () => import('@/pages/ClaimsPage.vue')
+const EditItemPage = () => import('@/pages/EditItemPage.vue')
+const HomePage = () => import('@/pages/HomePage.vue')
+const ItemDetailPage = () => import('@/pages/ItemDetailPage.vue')
+const LoginPage = () => import('@/pages/LoginPage.vue')
+const MyItemsPage = () => import('@/pages/MyItemsPage.vue')
+const NotFoundPage = () => import('@/pages/NotFoundPage.vue')
+const PublishItemPage = () => import('@/pages/PublishItemPage.vue')
+const RegisterPage = () => import('@/pages/RegisterPage.vue')
 
 const routes = [
   {
@@ -114,13 +114,6 @@ router.beforeEach(async (to) => {
   }
 
   return true
-})
-
-router.afterEach((to) => {
-  const pageTitle = to.meta?.title
-  document.title = pageTitle
-    ? `${pageTitle} | CampusEncontra`
-    : 'CampusEncontra'
 })
 
 export default router

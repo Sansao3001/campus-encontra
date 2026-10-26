@@ -61,6 +61,8 @@ export const adminActionLabels = {
   'item.moderate': 'Anúncio retirado',
   'item.restore': 'Anúncio reposto',
   'report.update': 'Denúncia actualizada',
+  'report.export': 'Exportação de relatório',
+  'settings.update': 'Configurações actualizadas',
 }
 
 export function getAdminActionLabel(action) {

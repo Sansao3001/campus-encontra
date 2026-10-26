@@ -1,0 +1,1 @@
+function e(e,t=null){if(typeof e!=`string`)return t;let n=e.trim();return!n.startsWith(`/`)||n.startsWith(`//`)||n.includes(`\\`)||/[\u0000-\u001f]/.test(n)?t:n}export{e as t};

@@ -6,10 +6,10 @@
         variant="text"
         color="white"
         class="logo-button px-0"
-        aria-label="CampusEncontra — Ir para o início"
+        :aria-label="`${siteName} — Ir para o início`"
       >
         <v-icon size="30" class="mr-1">mdi-school</v-icon>
-        <span class="text-h6 font-weight-bold">CampusEncontra</span>
+        <span class="text-h6 font-weight-bold logo-button__label">{{ siteName }}</span>
       </v-btn>
 
       <v-spacer />
@@ -97,10 +97,10 @@
     <div class="pa-5">
       <div class="d-flex align-center">
         <v-icon color="primary" size="28" class="mr-2">mdi-school</v-icon>
-        <span class="text-h6 font-weight-bold drawer-brand">CampusEncontra</span>
+        <span class="text-h6 font-weight-bold drawer-brand">{{ siteName }}</span>
       </div>
       <p class="text-caption text-medium-emphasis mt-2 mb-0">
-        Encontra o que procuras.
+        {{ siteTagline }}
       </p>
     </div>
 
@@ -175,22 +175,36 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authState, hasSession, isAdmin, logout } from '@/stores/auth'
+import { loadPublicSettings, publicSettings } from '@/stores/settings'
 
 const route = useRoute()
 const router = useRouter()
 const drawer = ref(false)
 const loggingOut = ref(false)
 
+const siteName = computed(
+  () => publicSettings.settings?.site_name || 'CampusEncontra',
+)
+
+const siteTagline = computed(
+  () => publicSettings.settings?.site_description || 'Encontra o que procuras.',
+)
+
 const primaryLinks = computed(() => {
   const links = [
     { name: 'home', label: 'Início', icon: 'mdi-home-outline' },
-    { name: 'publish', label: 'Publicar', icon: 'mdi-plus-circle-outline' },
-    { name: 'my-items', label: 'Os meus objectos', icon: 'mdi-bag-personal-outline' },
-    { name: 'claims', label: 'Reclamações', icon: 'mdi-handshake-outline' },
   ]
+
+  if (hasSession.value) {
+    links.push(
+      { name: 'publish', label: 'Publicar', icon: 'mdi-plus-circle-outline' },
+      { name: 'my-items', label: 'Os meus objectos', icon: 'mdi-bag-personal-outline' },
+      { name: 'claims', label: 'Reclamações', icon: 'mdi-handshake-outline' },
+    )
+  }
 
   if (isAdmin.value) {
     links.push({
@@ -237,12 +251,37 @@ watch(
     drawer.value = false
   },
 )
+
+watch(
+  [siteName, () => route.meta?.title],
+  ([name, pageTitle]) => {
+    document.title = pageTitle ? `${pageTitle} | ${name}` : name
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  void loadPublicSettings()
+})
 </script>
 
 <style scoped>
 .logo-button {
   letter-spacing: 0;
   text-transform: none;
+}
+
+.logo-button__label {
+  max-width: min(36vw, 260px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-brand {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-active {

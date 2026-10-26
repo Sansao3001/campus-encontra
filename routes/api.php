@@ -5,11 +5,14 @@ use App\Http\Controllers\Api\Admin\AdminClaimController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminItemController;
 use App\Http\Controllers\Api\Admin\AdminReportController;
+use App\Http\Controllers\Api\Admin\AdminReportingController;
+use App\Http\Controllers\Api\Admin\AdminSettingsController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClaimController;
 use App\Http\Controllers\Api\ClaimMessageController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\PublicSettingsController;
 use App\Http\Controllers\Api\ReportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +22,9 @@ Route::post('/register', [AuthController::class, 'register'])
     ->middleware('throttle:auth');
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:auth');
+
+// Configurações públicas e seguras da plataforma.
+Route::get('/settings', [PublicSettingsController::class, 'show']);
 
 // Rotas públicas: consultar os itens
 Route::apiResource('items', ItemController::class)
@@ -86,6 +92,13 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         Route::get('/reports', [AdminReportController::class, 'index']);
         Route::get('/reports/{report}', [AdminReportController::class, 'show']);
         Route::patch('/reports/{report}', [AdminReportController::class, 'update']);
+
+        Route::get('/reporting', [AdminReportingController::class, 'index']);
+        Route::get('/exports/{dataset}', [AdminReportingController::class, 'export'])
+            ->middleware('throttle:exports');
+
+        Route::get('/settings', [AdminSettingsController::class, 'show']);
+        Route::put('/settings', [AdminSettingsController::class, 'update']);
 
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);
     });

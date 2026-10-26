@@ -45,6 +45,8 @@ test('estado de moderação de anúncios', () => {
 
 test('rótulos de auditoria e denúncias', () => {
   assert.equal(getAdminActionLabel('user.suspend'), 'Conta suspensa')
+  assert.equal(getAdminActionLabel('report.export'), 'Exportação de relatório')
+  assert.equal(getAdminActionLabel('settings.update'), 'Configurações actualizadas')
   assert.equal(getAdminActionLabel('acao.desconhecida'), 'acao.desconhecida')
   assert.equal(getReportReasonLabel('harassment'), 'Assédio ou comportamento abusivo')
   assert.equal(getReportStatusLabel('reviewing'), 'Em análise')

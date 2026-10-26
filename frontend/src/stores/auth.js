@@ -18,6 +18,7 @@ const state = reactive({
 })
 
 let restorePromise = null
+let sessionVersion = 0
 
 export const authState = readonly(state)
 export const hasSession = computed(() => Boolean(state.token))
@@ -35,6 +36,7 @@ function setSession(token, user) {
     throw new Error('Resposta de autenticação inválida.')
   }
 
+  sessionVersion += 1
   storeToken(token)
   state.token = token
   state.user = user
@@ -44,6 +46,7 @@ function setSession(token, user) {
 }
 
 export function clearSession() {
+  sessionVersion += 1
   clearStoredToken()
   state.token = null
   state.user = null
@@ -105,9 +108,15 @@ export async function restoreSession({ force = false } = {}) {
   state.sessionError = ''
 
   restorePromise = (async () => {
+    const version = sessionVersion
+
     try {
       const { data } = await api.get('/user')
       const user = normalizeUser(data)
+
+      if (version !== sessionVersion) {
+        return state.user
+      }
 
       if (!user) {
         throw new Error('Resposta de utilizador inválida.')
@@ -116,6 +125,10 @@ export async function restoreSession({ force = false } = {}) {
       state.user = user
       state.sessionExpired = false
     } catch (requestError) {
+      if (version !== sessionVersion) {
+        return state.user
+      }
+
       if (requestError?.response?.status === 401) {
         clearSession()
         state.sessionExpired = true
