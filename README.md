@@ -9,7 +9,7 @@ Aplicação web para consulta e publicação de objectos perdidos e encontrados 
 - Suite Laravel: **158 testes / 810 assertions** em SQLite e numa base PostgreSQL isolada.
 - Suite frontend: **12 testes** com o test runner nativo do Node.
 - Build de produção gerado em `public/app` com Vite.
-- Migrações da Fase 8 são aditivas e ainda não foram aplicadas à base local de referência `campus_encontra` sem autorização explícita.
+- Migrações da Fase 8 aplicadas à base local de referência `campus_encontra`; são aditivas e não eliminaram dados existentes.
 - Publicação online, domínio, HTTPS real e credenciais de alojamento **não** foram configurados nesta entrega.
 
 ## Funcionalidades
@@ -393,7 +393,7 @@ Não publicar `.env`, `vendor/`, `node_modules/`, chaves, tokens ou dados reais 
 ## Limitações conhecidas
 
 - A publicação online não foi executada: não houve domínio, alojamento nem credenciais reais nesta fase.
-- As migrações da Fase 8 estão criadas e testadas, mas ainda não foram aplicadas à base local de referência `campus_encontra` sem autorização explícita.
+- As migrações da Fase 8 foram aplicadas localmente e testadas numa base PostgreSQL isolada. Em produção, continuam por aplicar até à publicação.
 - O envio de email está em `log`; não há verificação de email nem recuperação de palavra-passe.
 - O armazenamento de fotos está preparado para disco local público ou S3, mas o S3 não foi configurado nem testado com credenciais reais. Se usares S3, ajusta a CSP `img-src`; se a API estiver noutro domínio, ajusta também `connect-src`.
 - Não existem testes E2E de browser automatizados; os testes cobrem API, regras de negócio, uploads, segurança, autorização administrativa e utilitários do frontend.
