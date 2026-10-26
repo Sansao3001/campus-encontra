@@ -11,7 +11,8 @@ class ClaimResource extends JsonResource
      * Representação segura de uma reclamação.
      *
      * O reclamante é reduzido a id e nome. Email e outros dados pessoais
-     * nunca são incluídos nesta resposta.
+     * nunca são incluídos nesta resposta. As mensagens só aparecem quando
+     * a relação foi carregada explicitamente por um participante.
      */
     public function toArray(Request $request): array
     {
@@ -32,6 +33,11 @@ class ClaimResource extends JsonResource
                 'id' => $this->claimant->id,
                 'name' => $this->claimant->name,
             ]),
+
+            'messages' => $this->whenLoaded(
+                'messages',
+                fn () => ClaimMessageResource::collection($this->messages)->resolve()
+            ),
         ];
     }
 }

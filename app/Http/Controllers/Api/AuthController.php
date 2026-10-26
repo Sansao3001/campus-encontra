@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -16,7 +17,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string|min:8|max:255',
         ], [
             'name.required' => 'Indica o teu nome.',
             'name.string' => 'O nome deve ser texto.',
@@ -28,11 +29,12 @@ class AuthController extends Controller
             'password.required' => 'Indica uma palavra-passe.',
             'password.string' => 'A palavra-passe deve ser texto.',
             'password.min' => 'A palavra-passe deve ter pelo menos 8 caracteres.',
+            'password.max' => 'A palavra-passe não pode ter mais de 255 caracteres.',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => Str::lower($validated['email']),
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -58,7 +60,7 @@ class AuthController extends Controller
             'password.string' => 'A palavra-passe deve ser texto.',
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where('email', Str::lower($validated['email']))->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([

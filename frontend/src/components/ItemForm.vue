@@ -97,6 +97,48 @@
           @update:model-value="clearError('description')"
         />
       </v-col>
+
+      <v-col cols="12">
+        <v-file-input
+          v-model="photoFile"
+          label="Fotografia (opcional)"
+          accept="image/jpeg,image/png,image/webp"
+          prepend-icon=""
+          prepend-inner-icon="mdi-camera-outline"
+          variant="outlined"
+          density="comfortable"
+          bg-color="white"
+          :error-messages="messagesFor('photo')"
+          :disabled="submitting"
+          hint="JPEG, PNG ou WebP, até 5 MB."
+          persistent-hint
+          show-size
+          @update:model-value="handlePhotoChange"
+        />
+
+        <div v-if="photoPreview" class="photo-preview mt-4">
+          <v-img
+            :src="photoPreview"
+            alt="Pré-visualização da fotografia do objecto"
+            max-height="260"
+            cover
+            class="rounded-lg"
+          />
+
+          <div class="d-flex justify-end mt-2">
+            <v-btn
+              variant="text"
+              color="error"
+              size="small"
+              prepend-icon="mdi-delete-outline"
+              :disabled="submitting"
+              @click="removeSelectedPhoto"
+            >
+              Remover fotografia
+            </v-btn>
+          </div>
+        </div>
+      </v-col>
     </v-row>
 
     <div class="d-flex flex-wrap ga-3 mt-2">
@@ -117,7 +159,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 const props = defineProps({
   initialItem: {
@@ -159,6 +201,76 @@ const form = reactive({
 })
 
 const localErrors = ref({})
+const photoFile = ref(null)
+const photoPreview = ref('')
+const removePhoto = ref(false)
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ALLOWED_PHOTO_EXTENSIONS = /\.(jpe?g|png|webp)$/i
+
+let previewObjectUrl = null
+
+function revokePreviewUrl() {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl)
+    previewObjectUrl = null
+  }
+}
+
+function isValidPhoto(file) {
+  if (!file) return true
+
+  const typeAllowed = ALLOWED_PHOTO_TYPES.includes(file.type)
+    || (!file.type && ALLOWED_PHOTO_EXTENSIONS.test(file.name))
+
+  return typeAllowed && file.size <= MAX_PHOTO_BYTES
+}
+
+function resetPhotoState(item) {
+  revokePreviewUrl()
+  photoFile.value = null
+  removePhoto.value = false
+  photoPreview.value = item?.photo_url || ''
+}
+
+function handlePhotoChange(value) {
+  revokePreviewUrl()
+
+  const file = Array.isArray(value) ? value[0] : value
+  photoFile.value = file ?? null
+  removePhoto.value = false
+
+  if (!file) {
+    photoPreview.value = props.initialItem?.photo_url || ''
+    clearError('photo')
+    return
+  }
+
+  if (!isValidPhoto(file)) {
+    localErrors.value = {
+      ...localErrors.value,
+      photo: 'Selecciona uma imagem JPEG, PNG ou WebP com menos de 5 MB.',
+    }
+    photoFile.value = null
+    photoPreview.value = props.initialItem?.photo_url || ''
+    return
+  }
+
+  clearError('photo')
+  previewObjectUrl = URL.createObjectURL(file)
+  photoPreview.value = previewObjectUrl
+}
+
+function removeSelectedPhoto() {
+  revokePreviewUrl()
+  photoFile.value = null
+  photoPreview.value = ''
+  removePhoto.value = Boolean(props.initialItem?.photo_url)
+  clearError('photo')
+}
+
+onBeforeUnmount(revokePreviewUrl)
 
 function toDateInput(value) {
   if (!value) return ''
@@ -188,6 +300,7 @@ function hydrate(item) {
   form.location = item?.location ?? ''
   form.occurrence_date = toDateInput(item?.occurrence_date)
   form.type = item?.type ?? ''
+  resetPhotoState(item)
   localErrors.value = {}
 }
 
@@ -258,6 +371,10 @@ function validate() {
     errors.type = 'Selecciona um tipo válido.'
   }
 
+  if (photoFile.value && !isValidPhoto(photoFile.value)) {
+    errors.photo = 'Selecciona uma imagem JPEG, PNG ou WebP com menos de 5 MB.'
+  }
+
   localErrors.value = errors
 
   return Object.keys(errors).length === 0
@@ -267,13 +384,23 @@ function handleSubmit() {
   if (props.submitting) return
   if (!validate()) return
 
-  emit('submit', {
+  const payload = {
     title: form.title.trim(),
     category: form.category.trim(),
     description: form.description.trim(),
     location: form.location.trim(),
     occurrence_date: form.occurrence_date,
     type: form.type,
-  })
+  }
+
+  if (photoFile.value) {
+    payload.photo = photoFile.value
+  }
+
+  if (removePhoto.value) {
+    payload.removePhoto = true
+  }
+
+  emit('submit', payload)
 }
 </script>

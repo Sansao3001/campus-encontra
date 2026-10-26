@@ -1,5 +1,14 @@
 <template>
   <v-card class="my-item-card d-flex flex-column" rounded="xl" elevation="0" height="100%">
+    <v-img
+      v-if="item.photo_url"
+      :src="item.photo_url"
+      :alt="`Fotografia de ${item.title}`"
+      height="170"
+      cover
+      class="my-item-card__photo"
+    />
+
     <v-card-item class="pb-2">
       <div class="d-flex align-start justify-space-between ga-3">
         <v-avatar size="48" color="campus-light">
@@ -103,5 +112,9 @@ const typeConfig = computed(() => getTypeConfig(props.item.type))
 .my-item-card__title {
   white-space: normal;
   line-height: 1.35;
+}
+
+.my-item-card__photo {
+  border-radius: 12px 12px 0 0;
 }
 </style>

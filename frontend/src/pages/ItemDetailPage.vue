@@ -109,13 +109,22 @@
         <v-col cols="12" md="5">
           <v-card rounded="xl" elevation="0" class="detail-card">
             <v-card-text class="text-center py-8">
-              <v-avatar size="96" color="campus-light" class="mb-4">
+              <v-img
+                v-if="item.photo_url"
+                :src="item.photo_url"
+                :alt="`Fotografia de ${item.title}`"
+                max-height="320"
+                contain
+                class="detail-photo mb-4"
+              />
+
+              <v-avatar v-else size="96" color="campus-light" class="mb-4">
                 <v-icon size="52" color="primary">{{ typeConfig.icon }}</v-icon>
               </v-avatar>
 
               <h2 class="text-h6 font-weight-bold mb-2">{{ typeConfig.label }}</h2>
               <p class="text-body-2 text-medium-emphasis mb-0">
-                A fotografia será suportada numa fase posterior.
+                {{ item.photo_url ? 'Fotografia enviada pelo autor.' : 'Este anúncio não tem fotografia.' }}
               </p>
             </v-card-text>
           </v-card>
@@ -476,5 +485,10 @@ watch(
   color: #263445;
   line-height: 1.7;
   white-space: pre-line;
+}
+
+.detail-photo {
+  border-radius: 14px;
+  background: #f4f7fb;
 }
 </style>

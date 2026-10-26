@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Disco das fotografias de objectos
+    |--------------------------------------------------------------------------
+    |
+    | Em produção podes usar "public" (com storage:link) ou "s3". O disco tem
+    | de ser publicamente legível para que o frontend apresente as imagens.
+    |
+    */
+
+    'item_photos_disk' => env('ITEM_PHOTOS_DISK', 'public'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |

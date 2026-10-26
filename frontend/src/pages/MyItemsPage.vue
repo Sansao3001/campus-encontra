@@ -106,6 +106,16 @@
           </v-btn>
         </template>
       </EmptyState>
+
+      <v-pagination
+        v-if="meta && meta.last_page > 1"
+        :model-value="meta.current_page"
+        :length="meta.last_page"
+        :total-visible="5"
+        rounded="circle"
+        class="mt-6"
+        @update:model-value="changePage"
+      />
     </template>
 
     <v-dialog v-model="deleteDialog" max-width="520" persistent>
@@ -166,13 +176,16 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import MyItemCard from '@/components/MyItemCard.vue'
-import { deleteItem, fetchMyItems } from '@/services/items'
+import { deleteItem, fetchMyItemsPaged } from '@/services/items'
 import { getApiErrorMessage } from '@/utils/errors'
 
+const PER_PAGE = 9
 const route = useRoute()
 const router = useRouter()
 
 const items = ref([])
+const meta = ref(null)
+const page = ref(1)
 const loading = ref(true)
 const error = ref('')
 const successMessage = ref('')
@@ -183,17 +196,27 @@ const deleteError = ref('')
 
 const countLabel = computed(() => {
   if (loading.value) return 'A carregar os teus objectos...'
-  if (items.value.length === 0) return 'Nenhum objecto publicado'
 
-  return `${items.value.length} ${items.value.length === 1 ? 'objecto' : 'objectos'}`
+  const total = meta.value?.total ?? items.value.length
+
+  if (total === 0) return 'Nenhum objecto publicado'
+
+  return `${total} ${total === 1 ? 'objecto' : 'objectos'}`
 })
 
-async function loadItems() {
+async function loadItems(targetPage = page.value) {
   loading.value = true
   error.value = ''
 
   try {
-    items.value = await fetchMyItems()
+    const result = await fetchMyItemsPaged({
+      page: targetPage,
+      per_page: PER_PAGE,
+    })
+
+    items.value = result.items
+    meta.value = result.meta
+    page.value = result.meta?.current_page ?? targetPage
   } catch (requestError) {
     error.value = getApiErrorMessage(
       requestError,
@@ -202,6 +225,10 @@ async function loadItems() {
   } finally {
     loading.value = false
   }
+}
+
+function changePage(nextPage) {
+  loadItems(nextPage)
 }
 
 function askDelete(item) {
@@ -228,16 +255,23 @@ async function confirmDelete() {
 
   try {
     await deleteItem(target.id)
-    items.value = items.value.filter((item) => item.id !== target.id)
+
     successMessage.value = 'Objecto eliminado com sucesso.'
     deleteDialog.value = false
     deleteTarget.value = null
+
+    // Se era o último item da página, recua para não ficar numa página vazia.
+    if (items.value.length === 1 && page.value > 1) {
+      page.value -= 1
+    }
+
+    await loadItems()
   } catch (requestError) {
     if (requestError?.response?.status === 404) {
-      items.value = items.value.filter((item) => item.id !== target.id)
       successMessage.value = 'O objecto já não existia na lista.'
       deleteDialog.value = false
       deleteTarget.value = null
+      await loadItems()
       return
     }
 

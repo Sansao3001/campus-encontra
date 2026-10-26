@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Claim extends Model
 {
@@ -48,6 +49,11 @@ class Claim extends Model
     public function claimant(): BelongsTo
     {
         return $this->belongsTo(User::class, 'claimant_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(ClaimMessage::class);
     }
 
     public function scopeActive($query)

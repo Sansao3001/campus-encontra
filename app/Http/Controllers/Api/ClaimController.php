@@ -14,29 +14,29 @@ class ClaimController extends Controller
     // Reclamações enviadas pelo utilizador autenticado.
     public function indexSent(Request $request)
     {
-        $claims = Claim::with(['item.user:id,name', 'claimant:id,name'])
-            ->where('claimant_id', $request->user()->id)
-            ->latest()
-            ->get();
+        $validated = $this->paginationRules($request);
 
-        return response()->json(
-            ClaimResource::collection($claims)->resolve()
-        );
+        $query = Claim::with(['item.user:id,name', 'claimant:id,name'])
+            ->where('claimant_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        return $this->collectionResponse($request, $query, $validated);
     }
 
     // Reclamações recebidas em objectos do utilizador autenticado.
     public function indexReceived(Request $request)
     {
-        $claims = Claim::with(['item.user:id,name', 'claimant:id,name'])
+        $validated = $this->paginationRules($request);
+
+        $query = Claim::with(['item.user:id,name', 'claimant:id,name'])
             ->whereHas('item', function ($query) use ($request) {
                 $query->where('user_id', $request->user()->id);
             })
-            ->latest()
-            ->get();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
 
-        return response()->json(
-            ClaimResource::collection($claims)->resolve()
-        );
+        return $this->collectionResponse($request, $query, $validated);
     }
 
     // Listar as reclamações de um objecto específico: apenas o dono.
@@ -48,14 +48,14 @@ class ClaimController extends Controller
             'Não tens permissão para consultar as reclamações deste objecto.'
         );
 
-        $claims = Claim::with(['item.user:id,name', 'claimant:id,name'])
-            ->where('item_id', $item->id)
-            ->latest()
-            ->get();
+        $validated = $this->paginationRules($request);
 
-        return response()->json(
-            ClaimResource::collection($claims)->resolve()
-        );
+        $query = Claim::with(['item.user:id,name', 'claimant:id,name'])
+            ->where('item_id', $item->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        return $this->collectionResponse($request, $query, $validated);
     }
 
     // Criar uma reclamação para um objecto alheio.
@@ -232,6 +232,39 @@ class ClaimController extends Controller
         return $this->respond($claim);
     }
 
+    // O responsável pelo objecto reabre o anúncio, cancelando a aceitação.
+    public function reopen(Request $request, Claim $claim)
+    {
+        $claim = DB::transaction(function () use ($request, $claim) {
+            [$lockedClaim, $item] = $this->lockClaimAndItem($claim);
+
+            abort_unless(
+                $item->user_id === $request->user()->id,
+                403,
+                'Apenas o responsável pelo objecto pode reabrir o anúncio.'
+            );
+
+            if ($lockedClaim->status !== Claim::STATUS_ACCEPTED) {
+                abort(409, 'Só é possível reabrir uma reclamação já aceite.');
+            }
+
+            if ($item->status !== 'pending') {
+                abort(409, 'O objecto não está em processo de recuperação.');
+            }
+
+            $lockedClaim->status = Claim::STATUS_CANCELLED;
+            $lockedClaim->decided_at = now();
+            $lockedClaim->save();
+
+            $item->status = 'open';
+            $item->save();
+
+            return $lockedClaim;
+        });
+
+        return $this->respond($claim);
+    }
+
     /**
      * Bloqueia primeiro o objecto e depois a reclamação, mantendo a mesma
      * ordem em todas as transições para reduzir o risco de deadlocks.
@@ -249,6 +282,27 @@ class ClaimController extends Controller
             ->firstOrFail();
 
         return [$lockedClaim, $item];
+    }
+
+    private function paginationRules(Request $request): array
+    {
+        return $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+    }
+
+    private function collectionResponse(Request $request, $query, array $validated)
+    {
+        if ($request->hasAny(['page', 'per_page'])) {
+            return ClaimResource::collection(
+                $query->paginate((int) ($validated['per_page'] ?? 12))->withQueryString()
+            );
+        }
+
+        return response()->json(
+            ClaimResource::collection($query->get())->resolve()
+        );
     }
 
     private function respond(Claim $claim, int $status = 200)

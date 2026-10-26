@@ -2,13 +2,15 @@ import axios from 'axios'
 import { emitUnauthorized } from './authEvents'
 import { clearStoredToken, getStoredToken } from './tokenStorage'
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+// Por omissão usamos um caminho relativo: em desenvolvimento o proxy do Vite
+// encaminha /api para o Laravel e em produção a SPA e a API partilham origem.
+const configuredBase = (import.meta.env.VITE_API_URL || '').trim()
+const baseURL = configuredBase || '/api'
 
 const api = axios.create({
   baseURL,
   headers: {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
   },
   timeout: 15000,
 })
@@ -53,3 +55,4 @@ api.interceptors.response.use(
 )
 
 export default api
+export { baseURL }

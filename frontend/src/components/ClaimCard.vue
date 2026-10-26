@@ -30,7 +30,9 @@
       <div class="d-flex flex-wrap ga-4 text-body-2 text-medium-emphasis mb-4">
         <span class="d-flex align-center ga-1">
           <v-icon size="16">mdi-account-outline</v-icon>
-          {{ claim.claimant?.name || 'Utilizador' }}
+          {{ mode === 'sent'
+            ? (claim.item?.user?.name || 'Responsável')
+            : (claim.claimant?.name || 'Utilizador') }}
         </span>
         <span class="d-flex align-center ga-1">
           <v-icon size="16">mdi-clock-outline</v-icon>
@@ -56,7 +58,18 @@
       </v-alert>
     </v-card-text>
 
-    <v-card-actions v-if="hasActions" class="px-4 pb-4 pt-0">
+    <v-card-actions class="px-4 pb-4 pt-0 flex-wrap ga-2">
+      <v-btn
+        color="primary"
+        variant="text"
+        rounded="lg"
+        prepend-icon="mdi-message-text-outline"
+        :disabled="busy"
+        @click="$emit('messages', claim)"
+      >
+        Mensagens
+      </v-btn>
+
       <v-spacer />
 
       <template v-if="mode === 'received' && claim.status === 'pending'">
@@ -80,16 +93,26 @@
         </v-btn>
       </template>
 
-      <v-btn
-        v-else-if="mode === 'received' && claim.status === 'accepted'"
-        color="success"
-        variant="flat"
-        rounded="lg"
-        :disabled="busy"
-        @click="$emit('action', 'confirm-return')"
-      >
-        {{ labels.confirm }}
-      </v-btn>
+      <template v-else-if="mode === 'received' && claim.status === 'accepted'">
+        <v-btn
+          color="warning"
+          variant="text"
+          rounded="lg"
+          :disabled="busy"
+          @click="$emit('action', 'reopen')"
+        >
+          Reabrir anúncio
+        </v-btn>
+        <v-btn
+          color="success"
+          variant="flat"
+          rounded="lg"
+          :disabled="busy"
+          @click="$emit('action', 'confirm-return')"
+        >
+          {{ labels.confirm }}
+        </v-btn>
+      </template>
 
       <v-btn
         v-else-if="mode === 'sent' && claim.status === 'pending'"
@@ -127,14 +150,9 @@ const props = defineProps({
   },
 })
 
-defineEmits(['action'])
+defineEmits(['action', 'messages'])
 
 const labels = computed(() => getClaimFlowLabels(props.claim.item?.type))
-
-const hasActions = computed(() => (
-  (props.mode === 'received' && ['pending', 'accepted'].includes(props.claim.status))
-  || (props.mode === 'sent' && props.claim.status === 'pending')
-))
 
 const showRecoveryNote = computed(() => (
   props.claim.status === 'accepted'

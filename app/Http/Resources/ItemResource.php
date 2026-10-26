@@ -2,8 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Item;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ItemResource extends JsonResource
 {
@@ -23,7 +25,8 @@ class ItemResource extends JsonResource
             'description' => $this->description,
             'location' => $this->location,
             'occurrence_date' => $this->occurrence_date,
-            'photo_path' => $this->photo_path,
+            'photo_url' => $this->photoUrl(),
+            'has_photo' => $this->photo_path !== null,
             'type' => $this->type,
             'status' => $this->status,
             'created_at' => $this->created_at,
@@ -34,5 +37,14 @@ class ItemResource extends JsonResource
                 'name' => $this->user->name,
             ]),
         ];
+    }
+
+    private function photoUrl(): ?string
+    {
+        if (! $this->photo_path) {
+            return null;
+        }
+
+        return Storage::disk(Item::photoDisk())->url($this->photo_path);
     }
 }
